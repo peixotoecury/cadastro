@@ -102,7 +102,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:13
 .filter-input{flex:1;min-width:200px;}
 .filter-input::placeholder{color:var(--muted2);}
 
-.table-wrap{overflow:auto;max-height:65vh;border-top:1px solid var(--border2);}
+.table-scroll-top{overflow-x:auto;overflow-y:hidden;height:16px;border-top:1px solid var(--border2);}
+.table-scroll-top #table-scroll-top-inner{height:1px;}
+.table-wrap{overflow:auto;max-height:65vh;}
 table.sol-table{width:100%;border-collapse:collapse;min-width:1500px;background:#fff;}
 table.sol-table thead th{position:sticky;top:0;background:var(--escuro-pc);color:#fff;padding:10px 12px;text-transform:uppercase;font-size:10px;letter-spacing:.6px;text-align:left;white-space:nowrap;z-index:1;}
 table.sol-table tbody td{padding:10px 12px;border-bottom:1px solid #E5EEF4;color:var(--preto-pc);font-size:12px;vertical-align:middle;white-space:nowrap;}
@@ -296,9 +298,13 @@ td.truncate{max-width:170px;overflow:hidden;text-overflow:ellipsis;}
           <option value="SIM">Contrato: Ativo</option>
           <option value="NÃO">Contrato: Desligado</option>
         </select>
+        <select class="filter-select" id="flt-mes">
+          <option value="">Todos os meses</option>
+        </select>
         <input class="filter-input" type="search" id="flt-busca" placeholder="Buscar por processo, reclamante ou reclamada…">
       </div>
-      <div class="table-wrap">
+      <div class="table-scroll-top" id="table-scroll-top"><div id="table-scroll-top-inner"></div></div>
+      <div class="table-wrap" id="table-wrap">
         <table class="sol-table">
           <thead>
             <tr>
@@ -385,6 +391,7 @@ async function carregar(){
     }
     CADASTROS = todos;
     document.querySelector('#erro-conexao').innerHTML = '';
+    popularFiltroMeses();
     render();
   }catch(err){
     mostrarErroConexao(err);
@@ -405,15 +412,36 @@ function badgeSimNao(v, corSim, corNao){
   return `<span class="badge ${corNao}">${e(v)}</span>`;
 }
 
+const NOMES_MES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function formatarMesAno(ym){
+  const [y,m] = ym.split('-');
+  return `${NOMES_MES[parseInt(m,10)-1]}/${y}`;
+}
+
+function popularFiltroMeses(){
+  const sel = document.querySelector('#flt-mes');
+  const atual = sel.value;
+  const metas = new Set();
+  CADASTROS.forEach(c => {
+    const ym = (c.created_at||'').slice(0,7);
+    if(ym) metas.add(ym);
+  });
+  const meses = Array.from(metas).sort().reverse();
+  sel.innerHTML = '<option value="">Todos os meses</option>' + meses.map(ym => `<option value="${ym}">${formatarMesAno(ym)}</option>`).join('');
+  if(meses.includes(atual)) sel.value = atual;
+}
+
 function filtrar(){
   const grupo = document.querySelector('#flt-grupo').value;
   const urgente = document.querySelector('#flt-urgente').value;
   const ativo = document.querySelector('#flt-ativo').value;
+  const mes = document.querySelector('#flt-mes').value;
   const busca = document.querySelector('#flt-busca').value.trim().toLowerCase();
   return CADASTROS.filter(c => {
     if(grupo && c.grupo_processos !== grupo) return false;
     if(urgente && c.urgente !== urgente) return false;
     if(ativo && c.contrato_ativo !== ativo) return false;
+    if(mes && (c.created_at||'').slice(0,7) !== mes) return false;
     if(busca){
       const alvo = [c.numero_processo, c.nome_reclamante, c.nome_reclamada].join(' ').toLowerCase();
       if(!alvo.includes(busca)) return false;
@@ -435,6 +463,7 @@ function render(){
   if(!lista.length){
     tbody.innerHTML = '';
     empty.style.display = '';
+    sincronizarLarguraScrollTop();
     return;
   }
   empty.style.display = 'none';
@@ -466,11 +495,36 @@ function render(){
       </td>
     </tr>
   `).join('');
+
+  sincronizarLarguraScrollTop();
 }
+
+function sincronizarLarguraScrollTop(){
+  const table = document.querySelector('table.sol-table');
+  const inner = document.querySelector('#table-scroll-top-inner');
+  if(table && inner) inner.style.width = table.scrollWidth + 'px';
+}
+
+const scrollTopEl = document.querySelector('#table-scroll-top');
+const tableWrapEl = document.querySelector('#table-wrap');
+let sincronizandoScroll = false;
+scrollTopEl.addEventListener('scroll', () => {
+  if(sincronizandoScroll) return;
+  sincronizandoScroll = true;
+  tableWrapEl.scrollLeft = scrollTopEl.scrollLeft;
+  sincronizandoScroll = false;
+});
+tableWrapEl.addEventListener('scroll', () => {
+  if(sincronizandoScroll) return;
+  sincronizandoScroll = true;
+  scrollTopEl.scrollLeft = tableWrapEl.scrollLeft;
+  sincronizandoScroll = false;
+});
 
 document.querySelector('#flt-grupo').addEventListener('change', render);
 document.querySelector('#flt-urgente').addEventListener('change', render);
 document.querySelector('#flt-ativo').addEventListener('change', render);
+document.querySelector('#flt-mes').addEventListener('change', render);
 document.querySelector('#flt-busca').addEventListener('input', render);
 
 // ── Lógica condicional do formulário ──
@@ -551,9 +605,7 @@ function montarEmail(c){
     `Data da audiência: ${formatarData(c.data_audiencia)}`,
     `Data do prazo: ${formatarData(c.data_prazo)}`,
     `Observação: ${naSeVazio(c.observacao)}`,
-    `Link do caso: ${naSeVazio(c.link_caso)}`,
-    '',
-    'Cadastrado via LAWgico — Módulo Cadastro Deloitte'
+    `Link do caso: ${naSeVazio(c.link_caso)}`
   ];
   const corpo = linhas.join('\n');
   const cc = (GRUPO_CC[c.grupo_processos] || []).join(',');
