@@ -102,13 +102,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:13
 .filter-input{flex:1;min-width:200px;}
 .filter-input::placeholder{color:var(--muted2);}
 
-.table-wrap{overflow-x:auto;}
+.table-wrap{overflow:auto;max-height:65vh;border-top:1px solid var(--border2);}
 table.sol-table{width:100%;border-collapse:collapse;min-width:1500px;background:#fff;}
-table.sol-table thead th{position:sticky;top:0;background:var(--escuro-pc);color:#fff;padding:10px 12px;text-transform:uppercase;font-size:10px;letter-spacing:.6px;text-align:left;white-space:nowrap;}
+table.sol-table thead th{position:sticky;top:0;background:var(--escuro-pc);color:#fff;padding:10px 12px;text-transform:uppercase;font-size:10px;letter-spacing:.6px;text-align:left;white-space:nowrap;z-index:1;}
 table.sol-table tbody td{padding:10px 12px;border-bottom:1px solid #E5EEF4;color:var(--preto-pc);font-size:12px;vertical-align:middle;white-space:nowrap;}
 table.sol-table tbody tr:hover td{background:#F8FCFF;}
 td.mono{font-family:var(--mono);font-size:11px;color:var(--muted);}
 td.wrap{white-space:normal;max-width:220px;}
+td.truncate{max-width:170px;overflow:hidden;text-overflow:ellipsis;}
 
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;border:1px solid transparent;}
 .badge-nao{background:#F1F5F8;color:var(--muted);border-color:var(--border2);}
@@ -372,9 +373,17 @@ function formatarData(iso){
 
 async function carregar(){
   try{
-    const { data, error } = await getClient().from(TABLE).select('*').order('created_at', { ascending: false });
-    if(error) throw error;
-    CADASTROS = data || [];
+    const PAGE = 1000;
+    let todos = [];
+    let de = 0;
+    while(true){
+      const { data, error } = await getClient().from(TABLE).select('*').order('created_at', { ascending: false }).range(de, de + PAGE - 1);
+      if(error) throw error;
+      todos = todos.concat(data || []);
+      if(!data || data.length < PAGE) break;
+      de += PAGE;
+    }
+    CADASTROS = todos;
     document.querySelector('#erro-conexao').innerHTML = '';
     render();
   }catch(err){
@@ -433,11 +442,11 @@ function render(){
   tbody.innerHTML = lista.map(c => `
     <tr>
       <td class="mono">${formatarData((c.created_at||'').slice(0,10))}</td>
-      <td>${e(c.nome_reclamada)}</td>
+      <td class="truncate" title="${e(c.nome_reclamada)}">${e(c.nome_reclamada)}</td>
       <td>${e(c.numero_contrato)}</td>
       <td class="mono">${e(c.numero_processo)}</td>
-      <td>${e(c.nome_reclamante)}</td>
-      <td>${e(c.cargo_reclamante)}</td>
+      <td class="truncate" title="${e(c.nome_reclamante)}">${e(c.nome_reclamante)}</td>
+      <td class="truncate" title="${e(c.cargo_reclamante)}">${e(c.cargo_reclamante)}</td>
       <td>${e(c.grupo_processos)}</td>
       <td>${e(c.sigla_adv)}</td>
       <td>${e(c.sigla_assistente)}</td>
