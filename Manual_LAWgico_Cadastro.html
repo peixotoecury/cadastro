@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Manual — LAWgico Cadastro | Peixoto &amp; Cury</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:   #051520;
+  --navy2:  #0a2235;
+  --cyan:   #00A9E0;
+  --white:  #FFFFFF;
+  --text:   #e8edf3;
+  --muted:  #7a9bb5;
+  --border: rgba(0,169,224,.18);
+  --card:   rgba(255,255,255,.04);
+  --card-h: rgba(255,255,255,.07);
+  --green:  #27AE60;
+  --amber:  #E67E22;
+  --red:    #e74c3c;
+  --red2:   #c0392b;
+  --purple: #A78BFA;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'Sora',sans-serif;background:var(--navy);color:var(--text);min-height:100vh;overflow-x:hidden;font-size:13px;}
+
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;
+  background:
+    radial-gradient(ellipse 70% 50% at 10% 0%, rgba(0,169,224,.08) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 90% 100%, rgba(0,59,92,.15) 0%, transparent 55%);
+  pointer-events:none;
+}
+
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(0,169,224,.25);border-radius:4px;}
+
+.header{
+  position:relative;z-index:10;position:sticky;top:0;
+  padding:20px 48px;
+  border-bottom:1px solid var(--border);
+  background:rgba(5,21,32,.85);
+  backdrop-filter:blur(12px);
+  display:flex;align-items:center;justify-content:space-between;gap:24px;
+}
+.lw-mark{display:flex;flex-direction:column;line-height:1;}
+.lw-wordmark{display:flex;align-items:flex-end;}
+.lw-law{font-size:26px;font-weight:800;color:#fff;letter-spacing:-1px;font-family:'Sora',sans-serif;}
+.lw-col{display:flex;flex-direction:column;align-items:flex-start;}
+.lw-mod{font-size:9px;font-weight:400;color:rgba(255,255,255,.75);letter-spacing:.8px;align-self:flex-end;}
+.lw-gico{font-size:26px;font-weight:300;color:#fff;letter-spacing:-1px;line-height:1;}
+.lw-tag{font-size:8px;color:rgba(255,255,255,.6);letter-spacing:3px;font-weight:400;margin-top:2px;}
+.header-right{text-align:right;}
+.firm-name{font-size:12px;font-weight:600;color:var(--white);opacity:.85;}
+.firm-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.manual-badge{
+  display:inline-block;margin-top:8px;
+  background:rgba(0,169,224,.15);border:1px solid var(--border);
+  color:var(--cyan);font-size:10px;font-weight:700;
+  padding:3px 12px;border-radius:20px;letter-spacing:.5px;
+}
+.open-app-btn{
+  display:inline-flex;align-items:center;gap:6px;margin-top:10px;
+  background:var(--cyan);color:var(--navy);font-size:11px;font-weight:700;
+  padding:7px 16px;border-radius:8px;text-decoration:none;
+}
+
+.hero{position:relative;z-index:5;padding:56px 48px 40px;border-bottom:1px solid var(--border);}
+.hero-tag{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(0,169,224,.10);border:1px solid rgba(0,169,224,.25);
+  color:var(--cyan);font-size:10px;font-weight:700;
+  padding:5px 16px;border-radius:20px;letter-spacing:1px;
+  text-transform:uppercase;margin-bottom:20px;
+}
+.hero-tag::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
+.hero h1{font-size:36px;font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.5px;margin-bottom:12px;}
+.hero h1 span{color:var(--cyan);}
+.hero p{font-size:14.5px;color:var(--muted);line-height:1.7;max-width:700px;}
+
+.toc{position:relative;z-index:5;padding:28px 48px;border-bottom:1px solid var(--border);background:var(--card);}
+.toc-title{font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:2px;margin-bottom:16px;}
+.toc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;}
+.toc-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;border-radius:10px;
+  background:rgba(255,255,255,.03);border:1px solid var(--border);
+  text-decoration:none;color:var(--muted);font-size:12px;font-weight:500;
+  transition:all .2s;
+}
+.toc-item:hover{background:rgba(0,169,224,.10);border-color:var(--cyan);color:var(--cyan);}
+.toc-num{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--cyan);font-weight:600;width:18px;flex-shrink:0;}
+
+.content{position:relative;z-index:5;max-width:920px;margin:0 auto;padding:0 48px 80px;}
+.section{margin-top:56px;}
+.sec-anchor{display:block;position:relative;top:-90px;visibility:hidden;}
+.sec-header{display:flex;align-items:center;gap:16px;margin-bottom:26px;}
+.sec-num{
+  width:36px;height:36px;border-radius:10px;flex-shrink:0;
+  background:rgba(0,169,224,.15);border:1px solid rgba(0,169,224,.3);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--cyan);
+}
+.sec-title{font-size:21px;font-weight:700;color:#fff;letter-spacing:-.3px;}
+.sec-line{flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent);}
+
+p{font-size:13.5px;color:var(--muted);line-height:1.8;margin-bottom:14px;}
+p strong{color:var(--text);}
+h4.sub{font-size:14px;font-weight:700;color:#fff;margin:22px 0 10px;}
+
+.info-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 24px;margin-bottom:16px;}
+.info-card.cyan-l{border-left:3px solid var(--cyan);}
+.info-card.green-l{border-left:3px solid var(--green);}
+.info-card.amber-l{border-left:3px solid var(--amber);}
+.info-card.red-l{border-left:3px solid var(--red);}
+.info-card h3{font-size:13.5px;font-weight:700;color:#fff;margin-bottom:8px;}
+.info-card p{margin-bottom:0;font-size:12.5px;}
+
+.manual-table{width:100%;border-collapse:collapse;margin:14px 0 24px;border-radius:12px;overflow:hidden;border:1px solid var(--border);}
+.manual-table th{text-align:left;padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);background:rgba(255,255,255,.05);border-bottom:1px solid var(--border);}
+.manual-table td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;color:var(--muted);line-height:1.6;}
+.manual-table td:first-child{color:#fff;font-weight:600;white-space:nowrap;}
+.manual-table tr:last-child td{border-bottom:none;}
+.manual-table tr:hover td{background:rgba(0,169,224,.04);}
+
+.steps{display:flex;flex-direction:column;gap:12px;margin-bottom:24px;}
+.step{display:flex;align-items:flex-start;gap:14px;}
+.step-num{width:28px;height:28px;border-radius:8px;flex-shrink:0;background:rgba(0,169,224,.15);border:1px solid rgba(0,169,224,.3);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;color:var(--cyan);}
+.step-body h4{font-size:13px;font-weight:700;color:#fff;margin-bottom:4px;}
+.step-body p{font-size:12px;color:var(--muted);margin:0;line-height:1.6;}
+
+.alert{display:flex;align-items:flex-start;gap:14px;padding:16px 20px;border-radius:12px;margin-bottom:20px;}
+.alert.info{background:rgba(0,169,224,.08);border:1px solid rgba(0,169,224,.25);}
+.alert.warn{background:rgba(230,126,34,.08);border:1px solid rgba(230,126,34,.25);}
+.alert.danger{background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.25);}
+.alert-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
+.alert-body{font-size:12.5px;color:var(--muted);line-height:1.7;}
+.alert-body strong{color:var(--text);}
+.alert.info .alert-body strong{color:var(--cyan);}
+.alert.warn .alert-body strong{color:var(--amber);}
+.alert.danger .alert-body strong{color:var(--red);}
+
+.faq{display:flex;flex-direction:column;gap:10px;margin-bottom:24px;}
+.faq-item{padding:16px 20px;border-radius:12px;background:var(--card);border:1px solid var(--border);}
+.faq-q{font-size:13px;font-weight:700;color:#fff;margin-bottom:6px;display:flex;gap:8px;}
+.faq-q::before{content:'?';color:var(--cyan);font-weight:800;}
+.faq-a{font-size:12.5px;color:var(--muted);line-height:1.7;margin:0;}
+
+.footer{position:relative;z-index:5;margin:0 48px 40px;padding:20px 28px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:14px;display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--muted);flex-wrap:wrap;gap:10px;}
+.footer strong{color:var(--cyan);}
+.back-btn{display:inline-flex;align-items:center;gap:6px;background:rgba(0,169,224,.12);border:1px solid rgba(0,169,224,.3);color:var(--cyan);font-size:11px;font-weight:700;padding:6px 16px;border-radius:8px;text-decoration:none;transition:all .2s;}
+.back-btn:hover{background:rgba(0,169,224,.22);}
+
+@media(max-width:768px){
+  .header,.hero,.toc,.content,.footer{padding-left:20px;padding-right:20px;}
+  .hero h1{font-size:26px;}
+  .toc-grid{grid-template-columns:1fr 1fr;}
+  .footer{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="lw-mark">
+    <div class="lw-wordmark">
+      <span class="lw-law">LAW</span>
+      <div class="lw-col">
+        <span class="lw-mod">cadastro</span>
+        <span class="lw-gico">gico</span>
+      </div>
+    </div>
+    <div class="lw-tag">lawyers at work</div>
+  </div>
+  <div class="header-right">
+    <div class="firm-name">Peixoto &amp; Cury Advogados</div>
+    <div class="firm-sub">Controladoria — Time B</div>
+    <div class="manual-badge">Manual do Usuário</div><br>
+    <a class="open-app-btn" href="https://peixotoecury.github.io/cadastro/" target="_blank">▶ Abrir o sistema</a>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-tag">Manual do usuário</div>
+  <h1>LAWgico <span>Cadastro</span></h1>
+  <p>Este é o guia de uso do módulo que registra os cadastros de processos que precisam ser reportados à Deloitte — reclamada, reclamante, grupo, datas e urgência — salva tudo num histórico e já monta o e-mail de envio com os destinatários certos.</p>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <div class="toc-title">Neste manual</div>
+  <div class="toc-grid">
+    <a class="toc-item" href="#visao-geral"><span class="toc-num">01</span> Visão geral</a>
+    <a class="toc-item" href="#preencher"><span class="toc-num">02</span> Como preencher o cadastro</a>
+    <a class="toc-item" href="#condicionais"><span class="toc-num">03</span> Campos condicionais</a>
+    <a class="toc-item" href="#emails"><span class="toc-num">04</span> Envio automático de e-mail</a>
+    <a class="toc-item" href="#historico"><span class="toc-num">05</span> Histórico, filtros e exportação</a>
+    <a class="toc-item" href="#faq"><span class="toc-num">06</span> Perguntas frequentes</a>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 01 VISÃO GERAL -->
+  <div class="section">
+    <span class="sec-anchor" id="visao-geral"></span>
+    <div class="sec-header"><div class="sec-num">01</div><div class="sec-title">Visão Geral</div><div class="sec-line"></div></div>
+    <p>O módulo fica publicado em <strong>peixotoecury.github.io/cadastro</strong> e não precisa de instalação — é só abrir no navegador. Os cadastros ficam salvos num banco compartilhado (o mesmo projeto usado pelo Controle de Decisões e Inclusão de Valores).</p>
+    <div class="alert info">
+      <div class="alert-icon">ℹ️</div>
+      <div class="alert-body"><strong>Atualização da tela:</strong> o histórico carrega quando você abre a página. Se outra pessoa cadastrar algo depois disso, dê um F5 pra ver o registro dela — a tela não atualiza sozinha em tempo real.</div>
+    </div>
+  </div>
+
+  <!-- 02 COMO PREENCHER -->
+  <div class="section">
+    <span class="sec-anchor" id="preencher"></span>
+    <div class="sec-header"><div class="sec-num">02</div><div class="sec-title">Como Preencher o Cadastro</div><div class="sec-line"></div></div>
+    <p>O formulário "Novo Cadastro", à esquerda da tela, tem os mesmos campos do antigo formulário do Forms usado para reportar casos à Deloitte:</p>
+    <table class="manual-table">
+      <thead><tr><th>Campo</th><th>Obrigatório</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td>Nome da Reclamada</td><td>Sim</td><td>—</td></tr>
+        <tr><td>Número do Contrato</td><td>Não</td><td>Deixe em branco se não tiver.</td></tr>
+        <tr><td>Número do Processo</td><td>Sim</td><td>Formato CNJ.</td></tr>
+        <tr><td>Nome do Reclamante</td><td>Sim</td><td>—</td></tr>
+        <tr><td>Cargo do Reclamante</td><td>Sim</td><td>—</td></tr>
+        <tr><td>Grupo de Processos</td><td>Sim</td><td>A1, A2, A3, B1, B2, B3, C, D1, E1 ou E2 — define o CC do e-mail.</td></tr>
+        <tr><td>Sigla do Advogado</td><td>Sim</td><td>—</td></tr>
+        <tr><td>Sigla do(a) Assistente</td><td>Sim</td><td>—</td></tr>
+        <tr><td>É caso estratégico?</td><td>Sim</td><td>SIM / NÃO</td></tr>
+        <tr><td>Data de Admissão</td><td>Sim</td><td>—</td></tr>
+        <tr><td>Contrato Ativo</td><td>Sim</td><td>Se NÃO, libera o campo de data de desligamento.</td></tr>
+        <tr><td>É urgente?</td><td>Sim</td><td>Sim, se há prazo ou audiência no mês corrente.</td></tr>
+        <tr><td>Observação</td><td>Não</td><td>Livre.</td></tr>
+        <tr><td>Link do caso</td><td>Sim</td><td>Link de acesso à íntegra do caso.</td></tr>
+      </tbody>
+    </table>
+    <p>Ao terminar, clique em <strong>"Enviar Cadastro"</strong>. O registro é salvo no histórico e o Outlook abre automaticamente com o e-mail já pronto (veja a seção 04).</p>
+  </div>
+
+  <!-- 03 CAMPOS CONDICIONAIS -->
+  <div class="section">
+    <span class="sec-anchor" id="condicionais"></span>
+    <div class="sec-header"><div class="sec-num">03</div><div class="sec-title">Campos Condicionais</div><div class="sec-line"></div></div>
+    <p>Três perguntas do formulário só aparecem dependendo da resposta anterior — igual ao comportamento do formulário original:</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body"><h4>Contrato Ativo = NÃO</h4><p>Libera o campo "Data do Desligamento", que passa a ser obrigatório.</p></div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body"><h4>É urgente? = Sim</h4><p>Libera o campo "Qual prazo?" (Audiência, Tutela Antecipada ou Outra), que passa a ser obrigatório.</p></div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body"><h4>Qual prazo? = Audiência ou Tutela Antecipada/Outra</h4><p>Libera, respectivamente, "Data da audiência" ou "Data do prazo".</p></div>
+      </div>
+    </div>
+    <div class="alert warn">
+      <div class="alert-icon">⚠️</div>
+      <div class="alert-body"><strong>Atenção:</strong> se você mudar a resposta de uma pergunta anterior (ex: de "Sim" pra "Não" em É urgente?), os campos que dependiam dela são escondidos e limpos automaticamente.</div>
+    </div>
+  </div>
+
+  <!-- 04 E-MAILS -->
+  <div class="section">
+    <span class="sec-anchor" id="emails"></span>
+    <div class="sec-header"><div class="sec-num">04</div><div class="sec-title">Envio Automático de E-mail</div><div class="sec-line"></div></div>
+    <p>Depois de salvar o cadastro, o sistema abre uma janela do Outlook (via <code>mailto:</code>) já com destinatário, cópia, assunto e o corpo do e-mail preenchidos com todas as respostas. <strong>Você ainda precisa clicar em "Enviar" no Outlook</strong> — o sistema não envia sozinho.</p>
+    <table class="manual-table">
+      <thead><tr><th>Para (fixo, sempre)</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>cadastro.trabalhista@peixotoecury.com.br</td><td></td></tr>
+        <tr><td>deloitte@peixotoecury.com.br</td><td></td></tr>
+      </tbody>
+    </table>
+    <table class="manual-table">
+      <thead><tr><th>Grupo</th><th>Cópia (CC)</th></tr></thead>
+      <tbody>
+        <tr><td>A1</td><td>grupoa1@peixotoecury.com.br</td></tr>
+        <tr><td>A2</td><td>natalia.gaggini@peixotoecury.com.br</td></tr>
+        <tr><td>A3</td><td>sofia.freire@peixotoecury.com.br</td></tr>
+        <tr><td>B1</td><td>grupob1@peixotoecury.com.br</td></tr>
+        <tr><td>B2</td><td>grupob2@peixotoecury.com.br</td></tr>
+        <tr><td>B3</td><td>grupob3@peixotoecury.com.br</td></tr>
+        <tr><td>C</td><td>sofia.freire@peixotoecury.com.br</td></tr>
+        <tr><td>D1</td><td>bianca.camacho@peixotoecury.com.br e jessica.cerqueira@peixotoecury.com.br</td></tr>
+        <tr><td>E1</td><td>grupo.e1@peixotoecury.com.br</td></tr>
+        <tr><td>E2</td><td>e2administrativo@peixotoecury.com.br</td></tr>
+      </tbody>
+    </table>
+    <p>Precisou reenviar o e-mail de um cadastro já salvo? Use o botão <strong>"✉ Reenviar e-mail"</strong> na linha dele, na tabela de histórico.</p>
+  </div>
+
+  <!-- 05 HISTÓRICO -->
+  <div class="section">
+    <span class="sec-anchor" id="historico"></span>
+    <div class="sec-header"><div class="sec-num">05</div><div class="sec-title">Histórico, Filtros e Exportação</div><div class="sec-line"></div></div>
+    <p>A tabela à direita mostra todos os cadastros já feitos, com filtros por grupo, urgência e status do contrato, além de busca livre por processo, reclamante ou reclamada.</p>
+    <p>O botão <strong>"⬇ Exportar Excel"</strong> baixa um .xlsx com os cadastros que estão sendo exibidos na tela — se nenhum filtro estiver ativo, sai a lista completa.</p>
+    <div class="alert danger">
+      <div class="alert-icon">🗑️</div>
+      <div class="alert-body"><strong>Exclusão é definitiva:</strong> o botão 🗑 apaga o cadastro do banco de dados sem volta. Não existe edição de um cadastro já salvo — se precisar corrigir algo, exclua e cadastre de novo.</div>
+    </div>
+  </div>
+
+  <!-- 06 FAQ -->
+  <div class="section">
+    <span class="sec-anchor" id="faq"></span>
+    <div class="sec-header"><div class="sec-num">06</div><div class="sec-title">Perguntas Frequentes</div><div class="sec-line"></div></div>
+    <div class="faq">
+      <div class="faq-item"><div class="faq-q">A tela mostra "Não foi possível carregar os cadastros"</div><p class="faq-a">A tabela do banco de dados ainda não foi criada — é um passo único de configuração feito pela Controladoria no SQL Editor do Supabase. Avise quem administra o sistema.</p></div>
+      <div class="faq-item"><div class="faq-q">O que significa "N/A" numa célula da tabela?</div><p class="faq-a">Que aquele campo está vazio — ninguém preencheu ainda (ou não se aplicava, como Data de Desligamento pra contrato ativo). Não é erro.</p></div>
+      <div class="faq-item"><div class="faq-q">Dá pra editar um cadastro depois de enviado?</div><p class="faq-a">Não — o módulo só permite cadastrar, consultar/filtrar, reenviar o e-mail e excluir. Pra corrigir um dado, exclua o registro e cadastre de novo.</p></div>
+      <div class="faq-item"><div class="faq-q">Apaguei um cadastro por engano, dá pra recuperar?</div><p class="faq-a">Não — a exclusão é definitiva (por isso pede confirmação antes).</p></div>
+      <div class="faq-item"><div class="faq-q">O e-mail não abriu o Outlook, abriu outro programa ou nada aconteceu</div><p class="faq-a">O navegador usa o programa configurado como padrão pra links "mailto:" no Windows. Se não for o Outlook, ajuste em Configurações do Windows → Aplicativos padrão → E-mail.</p></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <div>Peixoto &amp; Cury Advogados · <strong>LAWgico</strong> · Cadastro</div>
+  <a class="back-btn" href="../LAWgico_Hub.html">← Voltar ao Hub</a>
+</div>
+
+</body>
+</html>
