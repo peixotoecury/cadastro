@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAWgico Cadastro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --azul-pc:  #00A9E0;
+  --cyan-lt:  rgba(0,169,224,.12);
+  --escuro-pc:#003B5C;
+  --preto-pc: #2D2926;
+  --bg:       #F4F9FC;
+  --surface:  #FFFFFF;
+  --surface2: #F7FCFF;
+  --border2:  #D8E7F0;
+  --text:     #2D2926;
+  --muted:    #5F7E92;
+  --muted2:   #7E98AA;
+  --red:      #C0392B;
+  --red-lt:   rgba(192,57,43,.10);
+  --orange:   #B85C00;
+  --orange-lt:rgba(230,126,34,.10);
+  --green:    #117A65;
+  --green-lt: rgba(17,122,101,.10);
+  --shadow-pc:0 8px 22px rgba(0,59,92,.08);
+  --font:     'Sora', sans-serif;
+  --mono:     'IBM Plex Mono', monospace;
+  --radius:   8px;
+  --radius-lg:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow-x:hidden;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(0,169,224,.25);border-radius:4px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,169,224,.45);}
+
+.topbar{background:linear-gradient(90deg,var(--escuro-pc),#00557B 72%,var(--azul-pc));border-bottom:4px solid var(--azul-pc);box-shadow:var(--shadow-pc);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:sticky;top:0;z-index:100;}
+.topbar-left{display:flex;align-items:center;gap:16px;}
+.tb-lawgico{display:inline-block;line-height:1;position:relative;}
+.tb-law{font-size:18px;font-weight:800;color:#fff;font-family:'Sora',sans-serif;letter-spacing:-.5px;}
+.tb-gico{font-size:18px;font-weight:300;color:#fff;font-family:'Sora',sans-serif;letter-spacing:-.5px;}
+.tb-modulo{font-size:9px;font-weight:300;color:rgba(255,255,255,.75);font-family:'Sora',sans-serif;position:absolute;top:-5px;right:0;white-space:nowrap;}
+.tb-tagline{font-size:7.5px;font-weight:300;letter-spacing:3px;color:rgba(255,255,255,.65);font-family:'Sora',sans-serif;margin-top:1px;}
+.topbar-divider{width:1px;height:28px;background:rgba(255,255,255,.25);}
+.topbar-title{font-size:13px;font-weight:600;color:rgba(255,255,255,.85);}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.logout-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.38);color:#fff;border-radius:var(--radius);padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;font-family:var(--font);text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.logout-btn:hover{background:rgba(255,255,255,.22);}
+
+.main{max-width:1520px;margin:0 auto;padding:22px 24px 60px;}
+
+.kpi-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;}
+.kpi-card{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--border2);box-shadow:var(--shadow-pc);border-radius:var(--radius-lg);padding:16px 20px;flex:1;min-width:170px;position:relative;overflow:hidden;transition:transform .2s;}
+.kpi-card:hover{transform:translateY(-2px);}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;}
+.kpi-total::before{background:linear-gradient(90deg,var(--azul-pc),#006080);}
+.kpi-red::before{background:linear-gradient(90deg,var(--red),#8B1D1D);}
+.kpi-orange::before{background:linear-gradient(90deg,#E67E22,#B85C00);}
+.kpi-green::before{background:linear-gradient(90deg,var(--green),#0c5c4c);}
+.kpi-icon{font-size:22px;flex-shrink:0;}
+.kpi-val{font-size:28px;font-weight:700;color:var(--escuro-pc);line-height:1;font-variant-numeric:tabular-nums;font-family:var(--mono);}
+.kpi-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-top:3px;font-weight:600;}
+
+.grid-main{display:grid;grid-template-columns:400px 1fr;gap:18px;align-items:start;}
+@media (max-width: 1050px){ .grid-main{grid-template-columns:1fr;} }
+
+.dash-card{background:var(--surface);border:1px solid var(--border2);box-shadow:var(--shadow-pc);border-radius:var(--radius-lg);overflow:hidden;}
+.dash-card-head{padding:16px 20px;border-bottom:1px solid var(--border2);background:var(--surface2);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--escuro-pc);display:flex;align-items:center;gap:8px;}
+.dash-card-body{padding:20px;}
+
+.mc-form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.mc-form-group label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.mc-form-group label .req{color:var(--red);}
+.mc-form-group input,.mc-form-group select,.mc-form-group textarea{
+  background:#fff;border:1px solid #BFD6E4;border-radius:var(--radius);padding:9px 12px;color:var(--preto-pc);font-size:13px;font-family:var(--font);outline:none;transition:border .2s;width:100%;resize:vertical;
+}
+.mc-form-group input:focus,.mc-form-group select:focus,.mc-form-group textarea:focus{border-color:var(--azul-pc);box-shadow:0 0 0 3px rgba(0,169,224,.14);}
+.mc-form-group input::placeholder,.mc-form-group textarea::placeholder{color:var(--muted2);}
+.hint{font-size:10.5px;color:var(--muted2);margin-top:2px;}
+
+.btn-cyan{background:var(--escuro-pc);color:#fff;border:none;border-radius:var(--radius);padding:11px 18px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;font-family:var(--font);width:100%;letter-spacing:.2px;}
+.btn-cyan:hover{background:#00557B;transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,59,92,.25);}
+.btn-cyan:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+
+.export-btn{background:var(--green);color:#fff;border:none;border-radius:var(--radius);padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;font-family:var(--font);display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.export-btn:hover{background:#0c5c4c;transform:translateY(-1px);box-shadow:0 4px 14px rgba(17,122,101,.3);}
+
+.action-btn{background:rgba(0,169,224,.10);border:1px solid rgba(0,169,224,.3);color:var(--escuro-pc);border-radius:var(--radius);padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;font-family:var(--font);white-space:nowrap;}
+.action-btn:hover{background:rgba(0,169,224,.2);}
+.action-btn.excluir{background:transparent;border-color:rgba(192,57,43,.3);color:var(--red);}
+.action-btn.excluir:hover{background:var(--red-lt);}
+
+.filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--border2);background:var(--surface2);}
+.filter-select,.filter-input{background:#fff;border:1px solid #BFD6E4;border-radius:var(--radius);padding:8px 12px;color:var(--preto-pc);font-size:12px;font-family:var(--font);outline:none;transition:border .2s;}
+.filter-select:focus,.filter-input:focus{border-color:var(--azul-pc);box-shadow:0 0 0 3px rgba(0,169,224,.14);}
+.filter-input{flex:1;min-width:200px;}
+.filter-input::placeholder{color:var(--muted2);}
+
+.table-wrap{overflow-x:auto;}
+table.sol-table{width:100%;border-collapse:collapse;min-width:1500px;background:#fff;}
+table.sol-table thead th{position:sticky;top:0;background:var(--escuro-pc);color:#fff;padding:10px 12px;text-transform:uppercase;font-size:10px;letter-spacing:.6px;text-align:left;white-space:nowrap;}
+table.sol-table tbody td{padding:10px 12px;border-bottom:1px solid #E5EEF4;color:var(--preto-pc);font-size:12px;vertical-align:middle;white-space:nowrap;}
+table.sol-table tbody tr:hover td{background:#F8FCFF;}
+td.mono{font-family:var(--mono);font-size:11px;color:var(--muted);}
+td.wrap{white-space:normal;max-width:220px;}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;border:1px solid transparent;}
+.badge-nao{background:#F1F5F8;color:var(--muted);border-color:var(--border2);}
+.badge-red{background:var(--red-lt);color:var(--red);border-color:rgba(192,57,43,.25);}
+.badge-orange{background:var(--orange-lt);color:var(--orange);border-color:rgba(230,126,34,.25);}
+.badge-green{background:var(--green-lt);color:var(--green);border-color:rgba(17,122,101,.25);}
+
+.empty-state{padding:48px 16px;text-align:center;color:var(--muted);font-size:13px;}
+.error-banner{background:var(--red-lt);border:1px solid rgba(192,57,43,.3);color:var(--red);border-radius:var(--radius);padding:14px 18px;margin-bottom:18px;font-size:12px;line-height:1.6;}
+.error-banner strong{color:var(--preto-pc);}
+.error-banner code{background:rgba(0,0,0,.06);padding:1px 6px;border-radius:4px;font-family:var(--mono);color:var(--preto-pc);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">
+      <div class="tb-lawgico"><span class="tb-law">LAW</span><span class="tb-gico">gico</span><span class="tb-modulo">cadastro</span></div>
+      <div class="tb-tagline">lawyers at work</div>
+    </div>
+    <div class="topbar-divider"></div>
+    <div class="topbar-title">LAWgico Cadastro</div>
+  </div>
+  <div class="topbar-right">
+    <a class="logout-btn" href="../LAWgico_Hub.html">← Hub</a>
+  </div>
+</div>
+
+<div class="main">
+
+  <div id="erro-conexao"></div>
+
+  <div class="kpi-row">
+    <div class="kpi-card kpi-total"><div class="kpi-icon">📋</div><div><div class="kpi-val" id="st-total">0</div><div class="kpi-label">Total de cadastros</div></div></div>
+    <div class="kpi-card kpi-red"><div class="kpi-icon">🔴</div><div><div class="kpi-val" id="st-urgentes">0</div><div class="kpi-label">Urgentes</div></div></div>
+    <div class="kpi-card kpi-orange"><div class="kpi-icon">⚠️</div><div><div class="kpi-val" id="st-estrategicos">0</div><div class="kpi-label">Casos Estratégicos</div></div></div>
+    <div class="kpi-card kpi-green"><div class="kpi-icon">✅</div><div><div class="kpi-val" id="st-ativos">0</div><div class="kpi-label">Contratos Ativos</div></div></div>
+  </div>
+
+  <div class="grid-main">
+
+    <div class="dash-card">
+      <div class="dash-card-head">📝 Novo Cadastro</div>
+      <div class="dash-card-body">
+        <form id="form-cadastro">
+
+          <div class="mc-form-group">
+            <label>Nome da Reclamada <span class="req">*</span></label>
+            <input type="text" id="f-reclamada" required>
+          </div>
+
+          <div class="mc-form-group">
+            <label>Número do Contrato</label>
+            <input type="text" id="f-contrato">
+          </div>
+
+          <div class="mc-form-group">
+            <label>Número do Processo <span class="req">*</span></label>
+            <input type="text" id="f-processo" required placeholder="0000000-00.0000.0.00.0000">
+          </div>
+
+          <div class="mc-form-group">
+            <label>Nome do Reclamante <span class="req">*</span></label>
+            <input type="text" id="f-reclamante" required>
+          </div>
+
+          <div class="mc-form-group">
+            <label>Cargo do Reclamante <span class="req">*</span></label>
+            <input type="text" id="f-cargo" required>
+          </div>
+
+          <div class="mc-form-group">
+            <label>Grupo de Processos <span class="req">*</span></label>
+            <select id="f-grupo" required>
+              <option value="" disabled selected>Selecione…</option>
+              <option>A1</option><option>A2</option><option>A3</option>
+              <option>B1</option><option>B2</option><option>B3</option>
+              <option>C</option><option>D1</option><option>E1</option><option>E2</option>
+            </select>
+          </div>
+
+          <div class="mc-form-group">
+            <label>Sigla do Advogado <span class="req">*</span></label>
+            <input type="text" id="f-sigla-adv" required>
+          </div>
+
+          <div class="mc-form-group">
+            <label>Sigla do(a) Assistente <span class="req">*</span></label>
+            <input type="text" id="f-sigla-assistente" required>
+          </div>
+
+          <div class="mc-form-group">
+            <label>É caso estratégico? <span class="req">*</span></label>
+            <select id="f-estrategico" required>
+              <option value="" disabled selected>Selecione…</option>
+              <option value="SIM">SIM</option>
+              <option value="NÃO">NÃO</option>
+            </select>
+          </div>
+
+          <div class="mc-form-group">
+            <label>Data de Admissão <span class="req">*</span></label>
+            <input type="date" id="f-data-admissao" required>
+          </div>
+
+          <div class="mc-form-group">
+            <label>Empregado está com contrato ativo <span class="req">*</span></label>
+            <select id="f-contrato-ativo" required>
+              <option value="" disabled selected>Selecione…</option>
+              <option value="SIM">SIM</option>
+              <option value="NÃO">NÃO</option>
+            </select>
+          </div>
+
+          <div class="mc-form-group" id="wrap-data-desligamento" style="display:none;">
+            <label>Data do Desligamento <span class="req">*</span></label>
+            <input type="date" id="f-data-desligamento">
+          </div>
+
+          <div class="mc-form-group">
+            <label>É urgente? (prazo ou audiência no mês corrente) <span class="req">*</span></label>
+            <select id="f-urgente" required>
+              <option value="" disabled selected>Selecione…</option>
+              <option value="Sim">Sim</option>
+              <option value="Não">Não</option>
+            </select>
+          </div>
+
+          <div class="mc-form-group" id="wrap-qual-prazo" style="display:none;">
+            <label>Qual prazo? <span class="req">*</span></label>
+            <select id="f-qual-prazo">
+              <option value="" disabled selected>Selecione…</option>
+              <option>Audiência</option>
+              <option>Tutela Antecipada</option>
+              <option>Outra</option>
+            </select>
+          </div>
+
+          <div class="mc-form-group" id="wrap-data-audiencia" style="display:none;">
+            <label>Qual a data da audiência? <span class="req">*</span></label>
+            <input type="date" id="f-data-audiencia">
+          </div>
+
+          <div class="mc-form-group" id="wrap-data-prazo" style="display:none;">
+            <label>Qual a data do prazo? <span class="req">*</span></label>
+            <input type="date" id="f-data-prazo">
+          </div>
+
+          <div class="mc-form-group">
+            <label>Observação</label>
+            <textarea id="f-observacao" rows="2"></textarea>
+          </div>
+
+          <div class="mc-form-group">
+            <label>Link para download ou acesso à íntegra do caso <span class="req">*</span></label>
+            <input type="text" id="f-link" required placeholder="https://…">
+          </div>
+
+          <button type="submit" class="btn-cyan">Enviar Cadastro</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-head">🎯 Cadastros Enviados
+        <button class="export-btn" id="btn-exportar" style="margin-left:auto;">⬇ Exportar Excel</button>
+      </div>
+      <div class="filters">
+        <select class="filter-select" id="flt-grupo">
+          <option value="">Todos os grupos</option>
+          <option>A1</option><option>A2</option><option>A3</option>
+          <option>B1</option><option>B2</option><option>B3</option>
+          <option>C</option><option>D1</option><option>E1</option><option>E2</option>
+        </select>
+        <select class="filter-select" id="flt-urgente">
+          <option value="">Urgente: todos</option>
+          <option value="Sim">Urgente: Sim</option>
+          <option value="Não">Urgente: Não</option>
+        </select>
+        <select class="filter-select" id="flt-ativo">
+          <option value="">Contrato: todos</option>
+          <option value="SIM">Contrato: Ativo</option>
+          <option value="NÃO">Contrato: Desligado</option>
+        </select>
+        <input class="filter-input" type="search" id="flt-busca" placeholder="Buscar por processo, reclamante ou reclamada…">
+      </div>
+      <div class="table-wrap">
+        <table class="sol-table">
+          <thead>
+            <tr>
+              <th>Cadastrado em</th>
+              <th>Reclamada</th>
+              <th>Nº Contrato</th>
+              <th>Processo</th>
+              <th>Reclamante</th>
+              <th>Cargo</th>
+              <th>Grupo</th>
+              <th>Adv.</th>
+              <th>Assistente</th>
+              <th>Estratégico</th>
+              <th>Admissão</th>
+              <th>Contrato</th>
+              <th>Desligamento</th>
+              <th>Urgente</th>
+              <th>Qual Prazo</th>
+              <th>Data Audiência</th>
+              <th>Data Prazo</th>
+              <th>Observação</th>
+              <th>Link</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbody-cadastros"></tbody>
+        </table>
+        <div class="empty-state" id="empty-state" style="display:none;">Nenhum cadastro encontrado.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const SUPABASE_URL = 'https://sydamnqagkdmczmgkvso.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_kA_IDYtEdATSygg7EajrdQ_cEi4d57N';
+const TABLE = 'cadastros_deloitte';
+
+const DESTINATARIOS_FIXOS = ['cadastro.trabalhista@peixotoecury.com.br','deloitte@peixotoecury.com.br'];
+
+const GRUPO_CC = {
+  'A1': ['grupoa1@peixotoecury.com.br'],
+  'A2': ['natalia.gaggini@peixotoecury.com.br'],
+  'A3': ['sofia.freire@peixotoecury.com.br'],
+  'B1': ['grupob1@peixotoecury.com.br'],
+  'B2': ['grupob2@peixotoecury.com.br'],
+  'B3': ['grupob3@peixotoecury.com.br'],
+  'C':  ['sofia.freire@peixotoecury.com.br'],
+  'D1': ['bianca.camacho@peixotoecury.com.br','jessica.cerqueira@peixotoecury.com.br'],
+  'E1': ['grupo.e1@peixotoecury.com.br'],
+  'E2': ['e2administrativo@peixotoecury.com.br']
+};
+
+let sbClient = null;
+function getClient(){
+  if(!sbClient) sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  return sbClient;
+}
+
+let CADASTROS = [];
+
+function e(v){ return String(v==null||v===''?'N/A':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function naSeVazio(v){ return (v === null || v === undefined || v === '') ? 'N/A' : v; }
+function formatarData(iso){
+  if(!iso) return 'N/A';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+async function carregar(){
+  try{
+    const { data, error } = await getClient().from(TABLE).select('*').order('created_at', { ascending: false });
+    if(error) throw error;
+    CADASTROS = data || [];
+    document.querySelector('#erro-conexao').innerHTML = '';
+    render();
+  }catch(err){
+    mostrarErroConexao(err);
+  }
+}
+
+function mostrarErroConexao(err){
+  document.querySelector('#erro-conexao').innerHTML = `
+    <div class="error-banner">
+      <strong>Não foi possível carregar os cadastros.</strong><br>
+      A tabela <code>${TABLE}</code> provavelmente ainda não existe no Supabase. Rode o script SQL de criação da tabela (fornecido junto com este módulo) no SQL Editor do projeto e recarregue a página.<br>
+      <span style="opacity:.75;">Detalhe técnico: ${e(err.message || err)}</span>
+    </div>`;
+}
+
+function badgeSimNao(v, corSim, corNao){
+  if(v === 'Sim' || v === 'SIM') return `<span class="badge ${corSim}">${e(v)}</span>`;
+  return `<span class="badge ${corNao}">${e(v)}</span>`;
+}
+
+function filtrar(){
+  const grupo = document.querySelector('#flt-grupo').value;
+  const urgente = document.querySelector('#flt-urgente').value;
+  const ativo = document.querySelector('#flt-ativo').value;
+  const busca = document.querySelector('#flt-busca').value.trim().toLowerCase();
+  return CADASTROS.filter(c => {
+    if(grupo && c.grupo_processos !== grupo) return false;
+    if(urgente && c.urgente !== urgente) return false;
+    if(ativo && c.contrato_ativo !== ativo) return false;
+    if(busca){
+      const alvo = [c.numero_processo, c.nome_reclamante, c.nome_reclamada].join(' ').toLowerCase();
+      if(!alvo.includes(busca)) return false;
+    }
+    return true;
+  });
+}
+
+function render(){
+  const lista = filtrar();
+  const tbody = document.querySelector('#tbody-cadastros');
+  const empty = document.querySelector('#empty-state');
+
+  document.querySelector('#st-total').textContent = CADASTROS.length;
+  document.querySelector('#st-urgentes').textContent = CADASTROS.filter(c=>c.urgente==='Sim').length;
+  document.querySelector('#st-estrategicos').textContent = CADASTROS.filter(c=>c.caso_estrategico==='SIM').length;
+  document.querySelector('#st-ativos').textContent = CADASTROS.filter(c=>c.contrato_ativo==='SIM').length;
+
+  if(!lista.length){
+    tbody.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = lista.map(c => `
+    <tr>
+      <td class="mono">${formatarData((c.created_at||'').slice(0,10))}</td>
+      <td>${e(c.nome_reclamada)}</td>
+      <td>${e(c.numero_contrato)}</td>
+      <td class="mono">${e(c.numero_processo)}</td>
+      <td>${e(c.nome_reclamante)}</td>
+      <td>${e(c.cargo_reclamante)}</td>
+      <td>${e(c.grupo_processos)}</td>
+      <td>${e(c.sigla_adv)}</td>
+      <td>${e(c.sigla_assistente)}</td>
+      <td>${c.caso_estrategico==='SIM' ? '<span class="badge badge-orange">SIM</span>' : '<span class="badge badge-nao">NÃO</span>'}</td>
+      <td class="mono">${formatarData(c.data_admissao)}</td>
+      <td>${c.contrato_ativo==='SIM' ? '<span class="badge badge-green">Ativo</span>' : '<span class="badge badge-nao">Desligado</span>'}</td>
+      <td class="mono">${formatarData(c.data_desligamento)}</td>
+      <td>${badgeSimNao(c.urgente,'badge-red','badge-nao')}</td>
+      <td>${e(c.qual_prazo)}</td>
+      <td class="mono">${formatarData(c.data_audiencia)}</td>
+      <td class="mono">${formatarData(c.data_prazo)}</td>
+      <td class="wrap">${e(c.observacao)}</td>
+      <td>${c.link_caso ? `<a href="${e(c.link_caso)}" target="_blank" rel="noopener">abrir</a>` : 'N/A'}</td>
+      <td>
+        <button class="action-btn" onclick="reenviarEmail('${c.id}')">✉ Reenviar e-mail</button>
+        <button class="action-btn excluir" onclick="excluirCadastro('${c.id}')">🗑</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+document.querySelector('#flt-grupo').addEventListener('change', render);
+document.querySelector('#flt-urgente').addEventListener('change', render);
+document.querySelector('#flt-ativo').addEventListener('change', render);
+document.querySelector('#flt-busca').addEventListener('input', render);
+
+// ── Lógica condicional do formulário ──
+const fContratoAtivo = document.querySelector('#f-contrato-ativo');
+const wrapDesligamento = document.querySelector('#wrap-data-desligamento');
+const fDataDesligamento = document.querySelector('#f-data-desligamento');
+fContratoAtivo.addEventListener('change', function(){
+  const desligado = this.value === 'NÃO';
+  wrapDesligamento.style.display = desligado ? '' : 'none';
+  fDataDesligamento.required = desligado;
+  if(!desligado) fDataDesligamento.value = '';
+});
+
+const fUrgente = document.querySelector('#f-urgente');
+const wrapQualPrazo = document.querySelector('#wrap-qual-prazo');
+const fQualPrazo = document.querySelector('#f-qual-prazo');
+const wrapDataAudiencia = document.querySelector('#wrap-data-audiencia');
+const fDataAudiencia = document.querySelector('#f-data-audiencia');
+const wrapDataPrazo = document.querySelector('#wrap-data-prazo');
+const fDataPrazo = document.querySelector('#f-data-prazo');
+
+function resetPrazoCampos(){
+  wrapQualPrazo.style.display = 'none';
+  wrapDataAudiencia.style.display = 'none';
+  wrapDataPrazo.style.display = 'none';
+  fQualPrazo.required = false;
+  fDataAudiencia.required = false;
+  fDataPrazo.required = false;
+  fQualPrazo.value = '';
+  fDataAudiencia.value = '';
+  fDataPrazo.value = '';
+}
+
+fUrgente.addEventListener('change', function(){
+  if(this.value === 'Sim'){
+    wrapQualPrazo.style.display = '';
+    fQualPrazo.required = true;
+  } else {
+    resetPrazoCampos();
+  }
+});
+
+fQualPrazo.addEventListener('change', function(){
+  wrapDataAudiencia.style.display = 'none';
+  wrapDataPrazo.style.display = 'none';
+  fDataAudiencia.required = false;
+  fDataPrazo.required = false;
+  fDataAudiencia.value = '';
+  fDataPrazo.value = '';
+  if(this.value === 'Audiência'){
+    wrapDataAudiencia.style.display = '';
+    fDataAudiencia.required = true;
+  } else if(this.value === 'Tutela Antecipada' || this.value === 'Outra'){
+    wrapDataPrazo.style.display = '';
+    fDataPrazo.required = true;
+  }
+});
+
+function montarEmail(c){
+  const assunto = `Cadastro Deloitte — ${c.nome_reclamante} — ${c.numero_processo}`;
+  const linhas = [
+    'CADASTRO PARA DELOITTE',
+    '',
+    `Nome da Reclamada: ${naSeVazio(c.nome_reclamada)}`,
+    `Número do Contrato: ${naSeVazio(c.numero_contrato)}`,
+    `Número do Processo: ${naSeVazio(c.numero_processo)}`,
+    `Nome do Reclamante: ${naSeVazio(c.nome_reclamante)}`,
+    `Cargo do Reclamante: ${naSeVazio(c.cargo_reclamante)}`,
+    `Grupo de Processos: ${naSeVazio(c.grupo_processos)}`,
+    `Sigla do Advogado: ${naSeVazio(c.sigla_adv)}`,
+    `Sigla do(a) Assistente: ${naSeVazio(c.sigla_assistente)}`,
+    `É caso estratégico?: ${naSeVazio(c.caso_estrategico)}`,
+    `Data de Admissão: ${formatarData(c.data_admissao)}`,
+    `Contrato Ativo: ${naSeVazio(c.contrato_ativo)}`,
+    `Data do Desligamento: ${formatarData(c.data_desligamento)}`,
+    `É urgente?: ${naSeVazio(c.urgente)}`,
+    `Qual prazo?: ${naSeVazio(c.qual_prazo)}`,
+    `Data da audiência: ${formatarData(c.data_audiencia)}`,
+    `Data do prazo: ${formatarData(c.data_prazo)}`,
+    `Observação: ${naSeVazio(c.observacao)}`,
+    `Link do caso: ${naSeVazio(c.link_caso)}`,
+    '',
+    'Cadastrado via LAWgico — Módulo Cadastro Deloitte'
+  ];
+  const corpo = linhas.join('\n');
+  const cc = (GRUPO_CC[c.grupo_processos] || []).join(',');
+  const to = DESTINATARIOS_FIXOS.join(',');
+  let link = `mailto:${to}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
+  if(cc) link += `&cc=${encodeURIComponent(cc)}`;
+  return link;
+}
+
+function reenviarEmail(id){
+  const c = CADASTROS.find(x => String(x.id) === String(id));
+  if(!c) return;
+  window.location.href = montarEmail(c);
+}
+
+async function excluirCadastro(id){
+  if(!confirm('Excluir este cadastro? Essa ação não pode ser desfeita.')) return;
+  const { error } = await getClient().from(TABLE).delete().eq('id', id);
+  if(error){ alert('Erro ao excluir: ' + error.message); return; }
+  await carregar();
+}
+
+document.querySelector('#form-cadastro').addEventListener('submit', async function(ev){
+  ev.preventDefault();
+
+  const payload = {
+    nome_reclamada: document.querySelector('#f-reclamada').value.trim(),
+    numero_contrato: document.querySelector('#f-contrato').value.trim() || null,
+    numero_processo: document.querySelector('#f-processo').value.trim(),
+    nome_reclamante: document.querySelector('#f-reclamante').value.trim(),
+    cargo_reclamante: document.querySelector('#f-cargo').value.trim(),
+    grupo_processos: document.querySelector('#f-grupo').value,
+    sigla_adv: document.querySelector('#f-sigla-adv').value.trim(),
+    sigla_assistente: document.querySelector('#f-sigla-assistente').value.trim(),
+    caso_estrategico: document.querySelector('#f-estrategico').value,
+    data_admissao: document.querySelector('#f-data-admissao').value,
+    contrato_ativo: document.querySelector('#f-contrato-ativo').value,
+    data_desligamento: document.querySelector('#f-data-desligamento').value || null,
+    urgente: document.querySelector('#f-urgente').value,
+    qual_prazo: document.querySelector('#f-qual-prazo').value || null,
+    data_audiencia: document.querySelector('#f-data-audiencia').value || null,
+    data_prazo: document.querySelector('#f-data-prazo').value || null,
+    observacao: document.querySelector('#f-observacao').value.trim() || null,
+    link_caso: document.querySelector('#f-link').value.trim()
+  };
+
+  const { data, error } = await getClient().from(TABLE).insert(payload).select();
+  if(error){
+    alert('Erro ao salvar o cadastro: ' + error.message);
+    return;
+  }
+
+  const novo = (data && data[0]) || payload;
+  window.location.href = montarEmail(novo);
+
+  this.reset();
+  resetPrazoCampos();
+  wrapDesligamento.style.display = 'none';
+  fDataDesligamento.required = false;
+
+  await carregar();
+});
+
+document.querySelector('#btn-exportar').addEventListener('click', function(){
+  const lista = filtrar();
+  const dados = lista.map(c => ({
+    'Cadastrado em': formatarData((c.created_at||'').slice(0,10)),
+    'Reclamada': naSeVazio(c.nome_reclamada),
+    'Nº Contrato': naSeVazio(c.numero_contrato),
+    'Processo': naSeVazio(c.numero_processo),
+    'Reclamante': naSeVazio(c.nome_reclamante),
+    'Cargo': naSeVazio(c.cargo_reclamante),
+    'Grupo': naSeVazio(c.grupo_processos),
+    'Sigla Adv': naSeVazio(c.sigla_adv),
+    'Sigla Assistente': naSeVazio(c.sigla_assistente),
+    'Caso Estratégico': naSeVazio(c.caso_estrategico),
+    'Data Admissão': formatarData(c.data_admissao),
+    'Contrato Ativo': naSeVazio(c.contrato_ativo),
+    'Data Desligamento': formatarData(c.data_desligamento),
+    'Urgente': naSeVazio(c.urgente),
+    'Qual Prazo': naSeVazio(c.qual_prazo),
+    'Data Audiência': formatarData(c.data_audiencia),
+    'Data Prazo': formatarData(c.data_prazo),
+    'Observação': naSeVazio(c.observacao),
+    'Link do Caso': naSeVazio(c.link_caso)
+  }));
+  const ws = XLSX.utils.json_to_sheet(dados);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Cadastros Deloitte');
+  XLSX.writeFile(wb, `Cadastros_Deloitte_${new Date().toISOString().slice(0,10)}.xlsx`);
+});
+
+carregar();
+</script>
+</body>
+</html>
