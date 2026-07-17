@@ -188,7 +188,7 @@ td.wrap{white-space:normal;max-width:220px;}
               <option value="" disabled selected>Selecione…</option>
               <option>A1</option><option>A2</option><option>A3</option>
               <option>B1</option><option>B2</option><option>B3</option>
-              <option>C</option><option>D1</option><option>E1</option><option>E2</option>
+              <option>C1</option><option>D1</option><option>E1</option><option>E2</option>
             </select>
           </div>
 
@@ -198,7 +198,7 @@ td.wrap{white-space:normal;max-width:220px;}
           </div>
 
           <div class="mc-form-group">
-            <label>Sigla do(a) Assistente <span class="req">*</span></label>
+            <label>Sigla do(a) Assistente/Estagiário <span class="req">*</span></label>
             <input type="text" id="f-sigla-assistente" required>
           </div>
 
@@ -260,8 +260,8 @@ td.wrap{white-space:normal;max-width:220px;}
           </div>
 
           <div class="mc-form-group">
-            <label>Observação</label>
-            <textarea id="f-observacao" rows="2"></textarea>
+            <label>Observação <span class="req">*</span></label>
+            <textarea id="f-observacao" rows="2" required></textarea>
           </div>
 
           <div class="mc-form-group">
@@ -283,7 +283,7 @@ td.wrap{white-space:normal;max-width:220px;}
           <option value="">Todos os grupos</option>
           <option>A1</option><option>A2</option><option>A3</option>
           <option>B1</option><option>B2</option><option>B3</option>
-          <option>C</option><option>D1</option><option>E1</option><option>E2</option>
+          <option>C1</option><option>D1</option><option>E1</option><option>E2</option>
         </select>
         <select class="filter-select" id="flt-urgente">
           <option value="">Urgente: todos</option>
@@ -309,7 +309,7 @@ td.wrap{white-space:normal;max-width:220px;}
               <th>Cargo</th>
               <th>Grupo</th>
               <th>Adv.</th>
-              <th>Assistente</th>
+              <th>Assistente/Estagiário</th>
               <th>Estratégico</th>
               <th>Admissão</th>
               <th>Contrato</th>
@@ -348,7 +348,7 @@ const GRUPO_CC = {
   'B1': ['grupob1@peixotoecury.com.br'],
   'B2': ['grupob2@peixotoecury.com.br'],
   'B3': ['grupob3@peixotoecury.com.br'],
-  'C':  ['sofia.freire@peixotoecury.com.br'],
+  'C1': ['sofia.freire@peixotoecury.com.br'],
   'D1': ['bianca.camacho@peixotoecury.com.br','jessica.cerqueira@peixotoecury.com.br'],
   'E1': ['grupo.e1@peixotoecury.com.br'],
   'E2': ['e2administrativo@peixotoecury.com.br']
@@ -532,7 +532,7 @@ function montarEmail(c){
     `Cargo do Reclamante: ${naSeVazio(c.cargo_reclamante)}`,
     `Grupo de Processos: ${naSeVazio(c.grupo_processos)}`,
     `Sigla do Advogado: ${naSeVazio(c.sigla_adv)}`,
-    `Sigla do(a) Assistente: ${naSeVazio(c.sigla_assistente)}`,
+    `Sigla do(a) Assistente/Estagiário: ${naSeVazio(c.sigla_assistente)}`,
     `É caso estratégico?: ${naSeVazio(c.caso_estrategico)}`,
     `Data de Admissão: ${formatarData(c.data_admissao)}`,
     `Contrato Ativo: ${naSeVazio(c.contrato_ativo)}`,
@@ -619,7 +619,7 @@ document.querySelector('#btn-exportar').addEventListener('click', function(){
     'Cargo': naSeVazio(c.cargo_reclamante),
     'Grupo': naSeVazio(c.grupo_processos),
     'Sigla Adv': naSeVazio(c.sigla_adv),
-    'Sigla Assistente': naSeVazio(c.sigla_assistente),
+    'Sigla Assistente/Estagiário': naSeVazio(c.sigla_assistente),
     'Caso Estratégico': naSeVazio(c.caso_estrategico),
     'Data Admissão': formatarData(c.data_admissao),
     'Contrato Ativo': naSeVazio(c.contrato_ativo),
