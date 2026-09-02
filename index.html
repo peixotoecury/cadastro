@@ -350,10 +350,222 @@ td.acoes{overflow:visible;white-space:nowrap;}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 const SUPABASE_URL = 'https://sydamnqagkdmczmgkvso.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_kA_IDYtEdATSygg7EajrdQ_cEi4d57N';
 const TABLE = 'cadastros_deloitte';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── Detector de Prompt Injection (mesmas regras do LAWgico Prompt Injection,
+// peixotoecury.github.io/promptinjection — reaproveitadas aqui só pra texto
+// livre, sem OCR/PDF) — roda em "Observação" e "Link" ao salvar, não bloqueia
+// o cadastro, só grava a flag pra Controladoria revisar depois. ──────────────
+const INJ_RULES = [
+  { id:'ignore_prev', sev:'CRÍTICO', name:'Instrução de ignorar contexto anterior', patterns:[
+    /ignore\s+(all\s+)?previous\s+instructions?/gi,
+    /ignore\s+(todas\s+as\s+)?instru[çc][õo]es\s+anteriores?/gi,
+    /disregard\s+(all\s+)?(previous|prior|above)\s+instructions?/gi,
+    /esqueça\s+(tudo|todas\s+as\s+instru[çc][õo]es)/gi,
+    /forget\s+(everything|all\s+previous|your\s+instructions?)/gi,
+    /override\s+(previous\s+)?instructions?/gi,
+    /desconsidere?\s+(todas?\s+as?\s+)?instru[çc][õo]es?/gi,
+  ]},
+  { id:'new_system', sev:'CRÍTICO', name:'Injeção de novo system prompt', patterns:[
+    /new\s+system\s+prompt/gi, /novo\s+prompt\s+de\s+sistema/gi,
+    /<\s*system\s*>/gi, /\[SYSTEM\]/gi, /###\s*SYSTEM\s*###/gi,
+    /\[\[SYSTEM\]\]/gi, /---\s*SYSTEM\s*---/gi,
+    /<\|system\|>/gi, /\[\/SYSTEM\]/gi,
+  ]},
+  { id:'role_override', sev:'CRÍTICO', name:'Substituição de papel do modelo (role override)', patterns:[
+    /you\s+are\s+now\s+(a|an)\s+(AI|assistant|model|bot|judge|lawyer|expert)/gi,
+    /você\s+agora\s+é\s+(um|uma)\s+(assistente|modelo|IA|juiz|advogado|perito)/gi,
+    /você\s+(será|deve\s+agir\s+como)\s+(um|uma)\s+(assistente|modelo|IA|juiz|advogado|perito)/gi,
+    /act\s+as\s+(a|an)\s+(AI|assistant|model|bot|judge|expert|lawyer)/gi,
+    /aja\s+como\s+(um|uma)\s+(assistente|modelo|IA|juiz|advogado|perito|especialista)/gi,
+    /pretend\s+(you\s+are|to\s+be)\s+(a|an)\s+(AI|assistant|model|bot)/gi,
+    /finja\s+(que\s+você\s+é|ser)\s+(um|uma)\s+(assistente|modelo|IA)/gi,
+    /from\s+now\s+on\s+(you\s+are|act\s+as)/gi,
+    /de\s+agora\s+em\s+diante\s+(você\s+é|aja\s+como)/gi,
+  ]},
+  { id:'jailbreak', sev:'CRÍTICO', name:'Técnica de jailbreak / modo irrestrito', patterns:[
+    /DAN\s*(mode|modo)/gi, /do\s+anything\s+now/gi,
+    /developer\s+mode\s+enabled/gi, /modo\s+desenvolvedor\s+ativado/gi,
+    /jailbreak/gi,
+    /bypass\s+(safety|restrictions?|guidelines?|filters?)/gi,
+    /contornar\s+(seguran[çc]a|restri[çc][õo]es?|filtros?)/gi,
+    /unrestricted\s+mode/gi, /modo\s+irrestrito/gi,
+    /sem\s+restri[çc][õo]es\s+(de\s+)?(seguran[çc]a|IA)/gi,
+  ]},
+  { id:'chain_prompt', sev:'CRÍTICO', name:'Prompt chaining — injeção encadeada', patterns:[
+    /\[\[PROMPT\]\]/gi, /\{\{PROMPT\}\}/gi,
+    /###\s*INSTRUÇÃO\s*###/gi, /###\s*INSTRUCTION\s*###/gi,
+    /---\s*NOVA\s+INSTRUÇÃO\s*---/gi, /---\s*NEW\s+INSTRUCTION\s*---/gi,
+    /<prompt>/gi, /<\/prompt>/gi,
+    /\[OVERRIDE\]/gi, /\[OVERRIDE_INSTRUCTIONS\]/gi,
+  ]},
+  { id:'exfil', sev:'ALTO', name:'Tentativa de exfiltração de dados / contexto', patterns:[
+    /send\s+(all|the)\s+(data|information|context|conversation)\s+to/gi,
+    /envie\s+(todos\s+os\s+)?(dados|informa[çc][õo]es|contexto)\s+para/gi,
+    /exfiltrate/gi,
+    /print\s+(the|your)\s+(system|hidden)\s+prompt/gi,
+    /reveal\s+(your|the)\s+(system|hidden|secret)\s+prompt/gi,
+    /mostre?\s+(o\s+)?(seu\s+)?prompt\s+(do\s+sistema|oculto|secreto)/gi,
+    /repita\s+(todas?\s+as?\s+)?instru[çc][õo]es?\s+(que\s+recebeu|do\s+sistema)/gi,
+  ]},
+  { id:'output_manip', sev:'ALTO', name:'Manipulação forçada de saída / resposta', patterns:[
+    /respond\s+only\s+(in|with)/gi, /responda\s+apenas\s+(em|com)/gi,
+    /your\s+response\s+(must|should)\s+(only|always)/gi,
+    /never\s+(mention|say|include|reveal)/gi,
+    /nunca\s+(mencione|diga|inclua|revele)/gi,
+    /note\s+to\s+(the\s+)?(AI|model|assistant|LLM)/gi,
+    /nota\s+para\s+(a\s+)?(IA|modelo|assistente)/gi,
+    /always\s+respond\s+(in|with|as)/gi,
+    /sempre\s+responda\s+(em|com|como)/gi,
+  ]},
+  { id:'hidden_markers', sev:'ALTO', name:'Instrução oculta via marcadores de modelo', patterns:[
+    /\[\[.*?\]\]/gs, /<!--[\s\S]*?-->/g,
+    /HIDDEN_INSTRUCTION/gi, /INSTRUÇÃO_OCULTA/gi,
+    /\[INST\]/gi, /\[\/INST\]/gi,
+    /<\|im_start\|>/gi, /<\|im_end\|>/gi,
+    /<<SYS>>/gi, /<\/SYS>>/gi,
+    /<\|begin_of_text\|>/gi, /<\|end_of_text\|>/gi,
+    /\[START_SYSTEM_PROMPT\]/gi, /\[END_SYSTEM_PROMPT\]/gi,
+  ]},
+  { id:'indirect_inject', sev:'ALTO', name:'Injeção indireta via corpo do documento', patterns:[
+    /ao\s+resumir\s+este\s+documento[,\s]+/gi,
+    /when\s+summarizing\s+this\s+document[,\s]+/gi,
+    /ao\s+analisar\s+esta\s+pe[çc]a[,\s]+/gi,
+    /quando\s+(a\s+IA|o\s+modelo|o\s+assistente)\s+(ler|processar|analisar)/gi,
+    /when\s+(the\s+)?(AI|model|assistant)\s+(reads?|processes?|analyzes?)/gi,
+    /se\s+este\s+texto\s+for\s+(processado|lido)\s+(por|pela)\s+(IA|modelo)/gi,
+    /if\s+this\s+text\s+is\s+(processed|read)\s+by\s+(an?\s+)?(AI|model)/gi,
+  ]},
+  { id:'scoring_manip', sev:'ALTO', name:'Manipulação de score / avaliação de risco', patterns:[
+    /classifique\s+(esta\s+pe[çc]a|este\s+processo)\s+como\s+(favorável|improcedente)/gi,
+    /classify\s+this\s+(claim|case)\s+as\s+(favorable|unfavorable|low.risk)/gi,
+    /este\s+processo\s+(deve|deveria)\s+ser\s+(classificado|avaliado)\s+como/gi,
+    /the\s+risk\s+(of\s+this\s+case\s+)?(should\s+be|is)\s+(low|high|zero)/gi,
+    /probabilidade\s+de\s+(perda|ganho)\s+(é|deve\s+ser)\s+\d+\s*%/gi,
+    /o\s+risco\s+deste\s+processo\s+é\s+(baixo|mínimo|zero)/gi,
+  ]},
+  { id:'credential_steal', sev:'ALTO', name:'Captura de credenciais / dados pessoais', patterns:[
+    /informe?\s+(sua\s+)?(senha|password|token|chave\s+(de\s+)?api)/gi,
+    /provide\s+(your\s+)?(password|api\s+key|token|credentials?)/gi,
+    /insira?\s+(sua\s+)?(senha|cpf|cnpj|oab)/gi,
+    /enter\s+(your\s+)?(password|ssn|tax\s+id)/gi,
+  ]},
+  { id:'ai_addressing', sev:'MÉDIO', name:'Endereçamento direto ao modelo de IA', patterns:[
+    /\b(claude|chatgpt|gpt-?[34]o?|gemini|llama|copilot|mistral|bard|anthropic)\b/gi,
+    /\b(AI\s+assistant|language\s+model|LLM|large\s+language\s+model)\b/gi,
+    /\b(assistente\s+de\s+IA|modelo\s+de\s+linguagem)\b/gi,
+    /as\s+an\s+AI/gi,
+    /you\s+are\s+an?\s+(AI|language\s+model|assistant)/gi,
+  ]},
+  { id:'summarize_instr', sev:'MÉDIO', name:'Instrução de tarefa embutida no documento', patterns:[
+    /please\s+(summarize|translate|analyze|explain|classify|rate)\s+this/gi,
+    /por\s+favor\s+(resuma|traduza|analise|explique|classifique)\s+(este?|isso)/gi,
+    /summarize\s+the\s+(above|following|previous)/gi,
+    /resuma\s+(o\s+)?(acima|seguinte|anterior)/gi,
+    /translate\s+(the\s+)?(above|following)\s+(to|into)/gi,
+    /traduza\s+(o\s+)?(acima|seguinte)\s+para/gi,
+  ]},
+  { id:'context_vars', sev:'MÉDIO', name:'Variáveis e tokens de contexto de sistema', patterns:[
+    /\$\{[^}]+\}/g, /\{[A-Z_]{3,}\}/g,
+    /system_prompt/gi, /\bcontext_window\b/gi, /\btoken_limit\b/gi,
+    /\{\{\s*[a-z_]+\s*\}\}/gi,
+  ]},
+  { id:'unicode_hidden', sev:'BAIXO', name:'Caracteres Unicode de direcionamento oculto', patterns:[
+    /[​-‍﻿⁠]/g, /[‪-‮]/g, /[⁦-⁩]/g,
+  ]},
+  { id:'base64_suspicious', sev:'BAIXO', name:'String Base64 que decodifica como instrução', patterns:[
+    /\b(?:[A-Za-z0-9+\/]{40,}={0,2})\b/g,
+  ], validator: m => { try { return /ignore|system|prompt|instruction|forget|jailbreak|override/i.test(atob(m.trim())); } catch { return false; } }},
+  { id:'separator', sev:'BAIXO', name:'Separador de instrução suspeito', patterns:[
+    /^={3,}\s*(INSTRUÇÃO|INSTRUCTION|SYSTEM|OVERRIDE|IGNORE)/gim,
+    /---\s*(END|BEGIN|START)\s*(OF\s*)?(CONTEXT|DOCUMENT|SYSTEM)/gi,
+    /^---\s*PROMPT\s*---$/gim,
+  ]},
+  { id:'ai_awareness', sev:'ALTO', name:'Documento ciente de processamento por IA', patterns:[
+    /(?:intelig[êe]ncia\s+artificial|modelo\s+de\s+linguagem|LLM|GPT|Claude|Gemini)\s+(ir[áa]|vai|deve|dever[áa])\s+(ler|analis|process)/gi,
+    /ao\s+(?:sistema|modelo|assistente)\s+que\s+(?:ler|analis|process)/gi,
+    /para\s+(?:a\s+)?(?:IA|intelig[êe]ncia\s+artificial)\s+que\s+(?:ler|analis)/gi,
+    /este\s+(?:documento|texto)\s+ser[áa]\s+(?:lido|analisado)\s+por\s+(?:uma\s+)?(?:IA|intelig[êe]ncia)/gi,
+    /quando\s+(?:a\s+)?(?:IA|o\s+modelo)\s+(?:ler|processar|analisar)\s+este/gi,
+  ]},
+];
+
+function injAplicaRegras(text){
+  if(!text) return [];
+  const out = [];
+  for (const rule of INJ_RULES) {
+    for (const pat of rule.patterns) {
+      pat.lastIndex = 0;
+      let m;
+      while ((m = pat.exec(text)) !== null) {
+        if (rule.validator && !rule.validator(m[0])) continue;
+        const dup = out.find(f => f.ruleId===rule.id && Math.abs((f.mi||0)-m.index)<20);
+        if (!dup) out.push({ ruleId:rule.id, sev:rule.sev, name:rule.name, match:m[0].slice(0,120), mi:m.index });
+        if(!pat.global) break;
+      }
+    }
+  }
+  return out;
+}
+
+function injAnalisarCadastro(...textos){
+  const findings = textos.filter(Boolean).flatMap(t => injAplicaRegras(t));
+  const W = { 'CRÍTICO':40, 'ALTO':20, 'MÉDIO':8, 'BAIXO':2 };
+  const score = Math.min(findings.reduce((s,f) => s+(W[f.sev]||0), 0), 100);
+  const nivel = score>=40?'CRÍTICO':score>=20?'ALTO':score>=8?'MÉDIO':score>0?'BAIXO':'LIMPO';
+  const categorias = [...new Set(findings.map(f => f.name))];
+  return { score, nivel, categorias };
+}
+
+// Busca o PDF a partir do link salvo (OneDrive/SharePoint) no navegador de
+// quem está cadastrando — nesse momento a pessoa já está logada na conta
+// dela, então links de OneDrive pessoal costumam funcionar. Se o link não
+// for um PDF de verdade (ex: abre um visualizador em HTML) ou o fetch for
+// bloqueado (CORS/login), retorna null silenciosamente — nunca trava o
+// cadastro por causa disso, só faz a checagem ficar mais fraca (só texto).
+async function injBuscarTextoPDF(url){
+  if(!url) return null;
+  try{
+    const resp = await fetch(url, { mode:'cors' });
+    if(!resp.ok) return null;
+    const ctype = (resp.headers.get('content-type')||'').toLowerCase();
+    const buf = await resp.arrayBuffer();
+    // Confere assinatura %PDF- nos primeiros bytes — se não for PDF de
+    // verdade (ex: veio uma página HTML de login/visualizador), descarta.
+    const head = new TextDecoder().decode(new Uint8Array(buf.slice(0,5)));
+    if(head !== '%PDF-' && !ctype.includes('pdf')) return null;
+
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    let textoTotal = '';
+    const maxPaginas = Math.min(pdf.numPages, 40); // limite de segurança
+    for(let i=1; i<=maxPaginas; i++){
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent({ includeMarkedContent:false });
+      for(const item of content.items){
+        if(!item.str) continue;
+        textoTotal += item.str + ' ';
+        // Texto em fonte minúscula (<3pt) é o vetor clássico de injection
+        // escondida em PDF — mesmo critério do detector standalone.
+        const tf = item.transform || [1,0,0,1,0,0];
+        const fontSize = Math.sqrt(tf[0]*tf[0] + tf[1]*tf[1]);
+        if(fontSize > 0 && fontSize < 3 && item.str.trim().length > 2){
+          textoTotal += ' ' + item.str + ' ';
+        }
+      }
+    }
+    return textoTotal.trim() || null;
+  } catch(e){
+    console.warn('Não foi possível ler o PDF do link (CORS, login necessário, ou link não é PDF direto):', e);
+    return null;
+  }
+}
 
 const DESTINATARIOS_FIXOS = ['cadastro.trabalhista@peixotoecury.com.br','deloitte@peixotoecury.com.br'];
 
@@ -660,6 +872,14 @@ document.querySelector('#form-cadastro').addEventListener('submit', async functi
     observacao: document.querySelector('#f-observacao').value.trim() || null,
     link_caso: document.querySelector('#f-link').value.trim()
   };
+
+  const textoPDF = await injBuscarTextoPDF(payload.link_caso);
+  const inj = injAnalisarCadastro(payload.observacao, payload.link_caso, textoPDF);
+  payload.injection_score = inj.score;
+  payload.injection_nivel = inj.nivel;
+  payload.injection_categorias = inj.categorias.length
+    ? inj.categorias.join(' | ') + (textoPDF ? ' [PDF verificado]' : '')
+    : (textoPDF ? '[PDF verificado, sem achado]' : null);
 
   const { data, error } = await getClient().from(TABLE).insert(payload).select();
   if(error){

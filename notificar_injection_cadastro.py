@@ -1,0 +1,139 @@
+# -*- coding: utf-8 -*-
+"""
+notificar_injection_cadastro.py — LAWgico Cadastro
+
+Roda a cada poucos minutos (Tarefa Agendada do Windows, ex: a cada 15 min,
+dias uteis, horario comercial): checa se algum cadastro novo veio com
+injection_nivel != 'LIMPO' (detectado no index.html ao salvar, campo
+Observacao/Link) desde a ultima checagem, e manda 1 e-mail de alerta pra
+controladoria via automacao do Outlook (.Send() de verdade).
+
+Guarda o timestamp da ultima checagem em ULTIMO_CHECK_PATH (arquivo local,
+fora do git) pra nunca notificar o mesmo cadastro duas vezes.
+
+Se nada suspeito foi cadastrado desde a ultima checagem, nao manda e-mail
+nenhum (evita spam de "nada aconteceu").
+
+MODO_TESTE=True (padrao): manda pra TESTE_EMAIL em vez do destinatario real,
+com aviso no assunto -- usar assim ate a usuaria validar por alguns dias.
+Depois, mudar pra False (mesmo fluxo do notificar_conclusao.py, Compromissos).
+"""
+import json
+import logging
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+import requests
+import win32com.client
+
+sys.stdout.reconfigure(encoding='utf-8')
+
+SUPABASE_URL = "https://sydamnqagkdmczmgkvso.supabase.co"
+SUPABASE_KEY = "sb_publishable_kA_IDYtEdATSygg7EajrdQ_cEi4d57N"
+HEADERS = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json"}
+
+CADASTRO_URL = "https://peixotoecury.github.io/cadastro/"
+DESTINATARIO_REAL = "controladoria@peixotoecury.com.br"
+
+# ── MODO TESTE — deixar True ate a usuaria validar, depois mudar pra False ──
+MODO_TESTE = True
+TESTE_EMAIL = "claude.controladoria@peixotoecury.com.br"
+
+ULTIMO_CHECK_PATH = Path(__file__).parent / "_ultimo_check_injection.json"
+
+LOG = logging.getLogger("notificar_injection_cadastro")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+COR_NIVEL = {"CRÍTICO": "#C0392B", "ALTO": "#E67E22", "MÉDIO": "#D4AC0D", "BAIXO": "#5B6B7A"}
+
+
+def ler_ultimo_check():
+    if not ULTIMO_CHECK_PATH.exists():
+        # Primeira execucao: nao varre o historico inteiro, comeca a contar a
+        # partir de agora (senao manda 1 e-mail gigante com tudo que ja foi
+        # cadastrado desde sempre).
+        return datetime.now(timezone.utc).isoformat()
+    return json.loads(ULTIMO_CHECK_PATH.read_text(encoding="utf-8"))["ultimo_check"]
+
+
+def salvar_ultimo_check(timestamp_iso):
+    ULTIMO_CHECK_PATH.write_text(json.dumps({"ultimo_check": timestamp_iso}), encoding="utf-8")
+
+
+def buscar_suspeitos_desde(ultimo_check):
+    r = requests.get(
+        f"{SUPABASE_URL}/rest/v1/cadastros_deloitte",
+        headers=HEADERS, timeout=30,
+        params={
+            "injection_nivel": "neq.LIMPO",
+            "created_at": f"gt.{ultimo_check}",
+            "select": "*",
+            "order": "created_at.asc",
+        },
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def montar_corpo(itens):
+    def linha(c):
+        cor = COR_NIVEL.get(c.get("injection_nivel"), "#5B6B7A")
+        partes = [
+            f"<b style='color:{cor}'>{c.get('injection_nivel')}</b> (score {c.get('injection_score')})",
+            "—", c.get("nome_reclamante") or "—", "x", c.get("nome_reclamada") or "—",
+            f"· processo {c.get('numero_processo') or '—'}",
+        ]
+        cabecalho = " ".join(p for p in partes if p)
+        categorias = c.get("injection_categorias") or ""
+        obs = (c.get("observacao") or "")[:300]
+        return (f"<li>{cabecalho}<br>"
+                f"<span style='color:#7E98AA;font-size:12px'>Categorias: {categorias}</span><br>"
+                f"<span style='color:#7E98AA;font-size:12px'>Observação: {obs}</span></li>")
+
+    corpo = ("⚠️ Cadastro(s) com possível <b>prompt injection</b> detectado no campo "
+             "Observação/Link desde a última checagem:<br><br>")
+    corpo += "<ul>" + "".join(linha(c) for c in itens) + "</ul>"
+    corpo += (f"<br><a href='{CADASTRO_URL}'>Ver painel completo</a><br><br>"
+              f"Atenciosamente,<br>Controladoria — Peixoto e Cury Advogados")
+    return corpo
+
+
+def enviar_email(destinatario, assunto, corpo_html):
+    outlook = win32com.client.Dispatch("Outlook.Application")
+    mail = outlook.CreateItem(0)  # olMailItem
+    mail.To = destinatario
+    mail.Subject = assunto
+    mail.HTMLBody = corpo_html
+    mail.Send()
+
+
+def main():
+    ultimo_check = ler_ultimo_check()
+    agora = datetime.now(timezone.utc).isoformat()
+
+    suspeitos = buscar_suspeitos_desde(ultimo_check)
+    LOG.info(f"Suspeitos desde {ultimo_check}: {len(suspeitos)}")
+
+    if not suspeitos:
+        salvar_ultimo_check(agora)
+        LOG.info("Nada novo. Concluído.")
+        return
+
+    corpo = montar_corpo(suspeitos)
+    destinatario_real = DESTINATARIO_REAL
+    assunto = f"🔴 {len(suspeitos)} cadastro(s) com possível prompt injection — Cadastro Deloitte"
+    if MODO_TESTE:
+        destinatario_real = TESTE_EMAIL
+        assunto = f"[TESTE — seria p/ {DESTINATARIO_REAL}] {assunto}"
+
+    LOG.info(f"Enviando pra {destinatario_real} "
+             f"({'MODO TESTE, real=' + DESTINATARIO_REAL if MODO_TESTE else 'real'}) — {len(suspeitos)} item(ns)")
+    enviar_email(destinatario_real, assunto, corpo)
+
+    salvar_ultimo_check(agora)
+    LOG.info("Concluído.")
+
+
+if __name__ == "__main__":
+    main()
