@@ -873,6 +873,24 @@ document.querySelector('#form-cadastro').addEventListener('submit', async functi
     link_caso: document.querySelector('#f-link').value.trim()
   };
 
+  const normNum = s => String(s||'').replace(/\D/g,'');
+  const normNome = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+  await carregar();
+  const duplicado = CADASTROS.find(c =>
+    normNum(c.numero_processo) === normNum(payload.numero_processo) &&
+    normNome(c.nome_reclamante) === normNome(payload.nome_reclamante));
+  if(duplicado){
+    alert(
+      'ERRO: CADASTRO DUPLICADO\n\n' +
+      'Este processo já foi cadastrado para esta parte, não é necessário solicitar novamente.\n\n' +
+      'Processo: ' + duplicado.numero_processo + '\n' +
+      'Parte: ' + duplicado.nome_reclamante + '\n' +
+      'Cadastrado em: ' + formatarData((duplicado.created_at||'').slice(0,10)) + '\n' +
+      'Sigla Adv: ' + naSeVazio(duplicado.sigla_adv)
+    );
+    return;
+  }
+
   const textoPDF = await injBuscarTextoPDF(payload.link_caso);
   const inj = injAnalisarCadastro(payload.observacao, payload.link_caso, textoPDF);
   payload.injection_score = inj.score;
