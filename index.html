@@ -153,6 +153,20 @@ td.acoes{overflow:visible;white-space:nowrap;}
     <div class="kpi-card kpi-green"><div class="kpi-icon">✅</div><div><div class="kpi-val" id="st-ativos">0</div><div class="kpi-label">Contratos Ativos</div></div></div>
   </div>
 
+  <div class="dash-card" id="card-injection" style="margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+      <div style="font-weight:800;color:var(--navy,#003B5C);font-size:14px">🛡️ Prompt injection — verificação da petição inicial</div>
+      <div style="font-size:11px;color:#5B6B7A">Base: cadastros com petição inicial anexada</div>
+    </div>
+    <div class="kpi-row" style="margin-bottom:12px">
+      <div class="kpi-card kpi-green"><div><div class="kpi-val" id="inj-limpos">0</div><div class="kpi-label">Analisados, sem prompt injection</div></div></div>
+      <div class="kpi-card kpi-red"><div><div class="kpi-val" id="inj-alertas">0</div><div class="kpi-label">Com alerta (baixo a crítico)</div></div></div>
+      <div class="kpi-card kpi-orange"><div><div class="kpi-val" id="inj-escaneados">0</div><div class="kpi-label">PDF escaneado (só metadados)</div></div></div>
+      <div class="kpi-card kpi-total"><div><div class="kpi-val" id="inj-sem">0</div><div class="kpi-label">Sem petição anexada (anteriores)</div></div></div>
+    </div>
+    <div id="inj-lista" style="font-size:12px"></div>
+  </div>
+
   <div class="grid-main">
 
     <div class="dash-card">
@@ -678,6 +692,27 @@ function filtrar(){
   });
 }
 
+function renderInjecao(){
+  const anexo = c => /\[PDF anexado/.test(c.injection_categorias||'');
+  const com = CADASTROS.filter(anexo);
+  const alertas = com.filter(c => c.injection_nivel && c.injection_nivel !== 'LIMPO');
+  const escan = com.filter(c => /sem texto/.test(c.injection_categorias||''));
+  document.querySelector('#inj-limpos').textContent = com.length - alertas.length;
+  document.querySelector('#inj-alertas').textContent = alertas.length;
+  document.querySelector('#inj-escaneados').textContent = escan.length;
+  document.querySelector('#inj-sem').textContent = CADASTROS.length - com.length;
+  const ordem = ['CRÍTICO','ALTO','MÉDIO','BAIXO'];
+  const cor = { 'CRÍTICO':'#C0392B','ALTO':'#E67E22','MÉDIO':'#D4AC0D','BAIXO':'#5B6B7A' };
+  const lista = document.querySelector('#inj-lista');
+  if(!alertas.length){
+    lista.innerHTML = '<div style="color:#1E7A3E;font-weight:600">Nenhum alerta de prompt injection nas petições analisadas.</div>';
+    return;
+  }
+  alertas.sort((a,b) => ordem.indexOf(a.injection_nivel) - ordem.indexOf(b.injection_nivel) || (b.created_at||'').localeCompare(a.created_at||''));
+  lista.innerHTML = '<table style="width:100%;border-collapse:collapse"><tr style="background:#003B5C;color:#fff;text-align:left"><th style="padding:6px 8px">Data</th><th style="padding:6px 8px">Processo</th><th style="padding:6px 8px">Reclamante</th><th style="padding:6px 8px">Adv.</th><th style="padding:6px 8px">Nível</th><th style="padding:6px 8px">Categorias</th></tr>' +
+    alertas.map(c => `<tr style="border-bottom:1px solid #E5F3F8"><td style="padding:6px 8px">${formatarData((c.created_at||'').slice(0,10))}</td><td style="padding:6px 8px">${e(c.numero_processo)}</td><td style="padding:6px 8px">${e(c.nome_reclamante)}</td><td style="padding:6px 8px">${e(c.sigla_adv)}</td><td style="padding:6px 8px;font-weight:800;color:${cor[c.injection_nivel]||'#5B6B7A'}">${e(c.injection_nivel)} (${e(c.injection_score)})</td><td style="padding:6px 8px">${e((c.injection_categorias||'').replace(/\[PDF[^\]]*\]/g,'').trim())}</td></tr>`).join('') + '</table>';
+}
+
 function render(){
   const lista = filtrar();
   const tbody = document.querySelector('#tbody-cadastros');
@@ -687,6 +722,7 @@ function render(){
   document.querySelector('#st-urgentes').textContent = CADASTROS.filter(c=>c.urgente==='Sim').length;
   document.querySelector('#st-estrategicos').textContent = CADASTROS.filter(c=>c.caso_estrategico==='SIM').length;
   document.querySelector('#st-ativos').textContent = CADASTROS.filter(c=>c.contrato_ativo==='SIM').length;
+  renderInjecao();
 
   if(!lista.length){
     tbody.innerHTML = '';
