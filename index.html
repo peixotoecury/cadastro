@@ -811,6 +811,22 @@ fQualPrazo.addEventListener('change', function(){
   }
 });
 
+// Aviso em tela (modal) — usado para duplicidade, erro de PDF e resultado da verificação.
+function mostrarAviso(tipo, titulo, corpoHtml, textoBotao){
+  return new Promise(resolve => {
+    const cores = { erro:['#C0392B','#FDECEA'], ok:['#1E7A3E','#E8F5EC'], alerta:['#C0392B','#FDECEA'] }[tipo] || ['#003B5C','#E5F3F8'];
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,30,54,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML = `<div style="background:#fff;border-radius:12px;max-width:520px;width:100%;border-top:8px solid ${cores[0]};box-shadow:0 12px 40px rgba(0,0,0,.35);overflow:hidden">
+      <div style="background:${cores[1]};padding:16px 20px;color:${cores[0]};font-weight:800;font-size:16px">${titulo}</div>
+      <div style="padding:16px 20px;font-size:14px;line-height:1.55;color:#1A2B3C">${corpoHtml}</div>
+      <div style="padding:0 20px 18px;text-align:right"><button style="background:${cores[0]};color:#fff;border:none;border-radius:8px;padding:10px 22px;font-weight:700;font-size:14px;cursor:pointer">${textoBotao||'OK'}</button></div></div>`;
+    ov.querySelector('button').onclick = () => { ov.remove(); resolve(); };
+    document.body.appendChild(ov);
+    ov.querySelector('button').focus();
+  });
+}
+
 function montarEmail(c){
   const assunto = `Cadastro Deloitte — ${c.nome_reclamante} — ${c.numero_processo}`;
   const linhas = [
@@ -833,10 +849,13 @@ function montarEmail(c){
     `Data da audiência: ${formatarData(c.data_audiencia)}`,
     `Data do prazo: ${formatarData(c.data_prazo)}`,
     `Observação: ${naSeVazio(c.observacao)}`,
-    `Link do caso: ${naSeVazio(c.link_caso)}`
+    `Link do caso: ${naSeVazio(c.link_caso)}`,
+    '',
+    `VERIFICAÇÃO DE PROMPT INJECTION: ${c.injection_nivel === 'LIMPO' || !c.injection_nivel ? 'NÃO IDENTIFICADO (LIMPO)' : 'ALERTA — nível ' + c.injection_nivel + ' (score ' + c.injection_score + ')'}`,
+    ...(c.injection_categorias ? [`Detalhe: ${c.injection_categorias}`] : [])
   ];
   const corpo = linhas.join('\n');
-  const cc = (GRUPO_CC[c.grupo_processos] || []).join(',');
+  const cc = [...(GRUPO_CC[c.grupo_processos] || []), 'controladoria@peixotoecury.com.br'].join(',');
   const to = DESTINATARIOS_FIXOS.join(',');
   let link = `mailto:${to}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
   if(cc) link += `&cc=${encodeURIComponent(cc)}`;
@@ -858,7 +877,13 @@ async function excluirCadastro(id){
 
 document.querySelector('#form-cadastro').addEventListener('submit', async function(ev){
   ev.preventDefault();
+  const btnEnviar = this.querySelector('button[type=submit]');
+  const txtBtn = btnEnviar.textContent;
+  btnEnviar.disabled = true; btnEnviar.textContent = 'Verificando duplicidade e PDF…';
+  try{ await processarEnvio(this); } finally { btnEnviar.disabled = false; btnEnviar.textContent = txtBtn; }
+});
 
+async function processarEnvio(form){
   const payload = {
     nome_reclamada: document.querySelector('#f-reclamada').value.trim(),
     numero_contrato: document.querySelector('#f-contrato').value.trim() || null,
@@ -882,19 +907,25 @@ document.querySelector('#form-cadastro').addEventListener('submit', async functi
 
   const normNum = s => String(s||'').replace(/\D/g,'');
   const normNome = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
-  await carregar();
-  const duplicado = CADASTROS.find(c =>
+  // Consulta só os candidatos (mesmos 7 primeiros dígitos do processo) — bem mais rápido que recarregar tudo.
+  const dig = normNum(payload.numero_processo);
+  let candidatos = CADASTROS;
+  try{
+    if(dig.length >= 7){
+      const { data: cand, error: errCand } = await getClient().from(TABLE).select('*').ilike('numero_processo', '%' + dig.slice(0,7) + '%');
+      if(!errCand && cand) candidatos = cand.concat(CADASTROS);
+    }
+  }catch(_){}
+  const duplicado = candidatos.find(c =>
     normNum(c.numero_processo) === normNum(payload.numero_processo) &&
     normNome(c.nome_reclamante) === normNome(payload.nome_reclamante));
   if(duplicado){
-    alert(
-      'ERRO: CADASTRO DUPLICADO\n\n' +
-      'Este processo já foi cadastrado para esta parte, não é necessário solicitar novamente.\n\n' +
-      'Processo: ' + duplicado.numero_processo + '\n' +
-      'Parte: ' + duplicado.nome_reclamante + '\n' +
-      'Cadastrado em: ' + formatarData((duplicado.created_at||'').slice(0,10)) + '\n' +
-      'Sigla Adv: ' + naSeVazio(duplicado.sigla_adv)
-    );
+    await mostrarAviso('erro','ERRO: CADASTRO DUPLICADO',
+      'Este processo já foi cadastrado para esta parte. <b>Não é necessário solicitar novamente.</b><br><br>' +
+      '<b>Processo:</b> ' + e(duplicado.numero_processo) + '<br>' +
+      '<b>Parte:</b> ' + e(duplicado.nome_reclamante) + '<br>' +
+      '<b>Cadastrado em:</b> ' + formatarData((duplicado.created_at||'').slice(0,10)) + '<br>' +
+      '<b>Sigla Adv:</b> ' + e(duplicado.sigla_adv));
     return;
   }
 
@@ -907,7 +938,7 @@ document.querySelector('#form-cadastro').addEventListener('submit', async functi
     if(head !== '%PDF-') throw new Error('não é PDF');
     pdfLido = await injLerPDFBuffer(buf);
   }catch(err){
-    alert('ERRO: não foi possível ler o PDF anexado. Anexe a petição inicial em PDF (arquivo válido) para a verificação de segurança.');
+    await mostrarAviso('erro','ERRO: PDF não pôde ser lido','Anexe a petição inicial em <b>PDF válido</b> para a verificação de segurança e envie novamente.');
     return;
   }
   const inj = injAnalisarCadastro(payload.observacao, payload.link_caso, pdfLido.texto, pdfLido.meta);
@@ -931,15 +962,21 @@ document.querySelector('#form-cadastro').addEventListener('submit', async functi
   }
 
   const novo = (data && data[0]) || payload;
+  const limpo = !novo.injection_nivel || novo.injection_nivel === 'LIMPO';
+  await mostrarAviso(limpo ? 'ok' : 'alerta',
+    limpo ? 'Cadastro salvo — prompt injection: NÃO identificado' : 'ATENÇÃO: possível prompt injection identificado',
+    limpo ? 'A petição anexada foi verificada e <b>não apresentou sinais de prompt injection</b>. Clique em OK para abrir o e-mail de cadastro (a Controladoria recebe o resultado da verificação).'
+          : 'Nível <b>' + e(novo.injection_nivel) + '</b> (score ' + e(novo.injection_score) + ').<br>' + e(novo.injection_categorias || '') + '<br><br>O cadastro foi salvo e a Controladoria será avisada no e-mail. Clique em OK para abrir o e-mail.',
+    'OK — abrir e-mail');
   window.location.href = montarEmail(novo);
 
-  this.reset();
+  form.reset();
   resetPrazoCampos();
   wrapDesligamento.style.display = 'none';
   fDataDesligamento.required = false;
 
   await carregar();
-});
+}
 
 document.querySelector('#btn-exportar').addEventListener('click', function(){
   const lista = filtrar();
