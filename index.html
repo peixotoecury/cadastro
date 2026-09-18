@@ -941,7 +941,7 @@ async function processarEnvio(form){
     await mostrarAviso('erro','ERRO: PDF não pôde ser lido','Anexe a petição inicial em <b>PDF válido</b> para a verificação de segurança e envie novamente.');
     return;
   }
-  const inj = injAnalisarCadastro(payload.observacao, payload.link_caso, pdfLido.texto, pdfLido.meta);
+  const inj = injAnalisarCadastro(pdfLido.texto, pdfLido.meta);
   const cats = [...inj.categorias];
   let score = inj.score;
   if(pdfLido.oculto.length > 80){

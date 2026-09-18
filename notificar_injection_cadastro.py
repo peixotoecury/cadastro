@@ -28,7 +28,6 @@ from pathlib import Path
 import requests
 import win32com.client
 
-from pdf_injection_scan import verificar_link
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -81,32 +80,6 @@ def buscar_suspeitos_desde(ultimo_check):
 ORDEM = ["LIMPO", "BAIXO", "MÉDIO", "ALTO", "CRÍTICO"]
 
 
-def verificar_pdfs(itens):
-    """Baixa e analisa o PDF de cada cadastro ainda nao verificado; grava o resultado no Supabase."""
-    for c in itens:
-        cats = c.get("injection_categorias") or ""
-        if "[PDF verificado" in cats:
-            c["_pdf"] = {"verificado": True}
-            continue
-        res = verificar_link(c.get("link_caso"))
-        c["_pdf"] = res
-        if not res.get("verificado"):
-            continue
-        nivel_txt = c.get("injection_nivel") or "LIMPO"
-        nivel = max(nivel_txt, res["nivel"], key=lambda n: ORDEM.index(n) if n in ORDEM else 0)
-        score = max(c.get("injection_score") or 0, res["score"])
-        partes = [x for x in cats.split(" | ") if x] + res["categorias"]
-        sufixo = "[PDF verificado]" if res["achados"] else "[PDF verificado, sem achado]"
-        try:
-            requests.patch(f"{SUPABASE_URL}/rest/v1/cadastros_deloitte", headers=HEADERS, timeout=30,
-                           params={"id": f"eq.{c['id']}"},
-                           json={"injection_nivel": nivel, "injection_score": score,
-                                 "injection_categorias": (" | ".join(dict.fromkeys(partes)) + " " + sufixo).strip()})
-        except Exception as e:
-            LOG.warning(f"Nao gravou resultado do PDF de {c.get('id')}: {e}")
-        c["injection_nivel"], c["injection_score"] = nivel, score
-
-
 def montar_corpo(itens):
     def status(c):
         nivel = c.get("injection_nivel") or "SEM VERIFICAÇÃO"
@@ -114,19 +87,14 @@ def montar_corpo(itens):
         bruto = c.get("injection_categorias") or ""
         anexo = re.search(r"\[PDF anexado[^\]]*\]", bruto)
         cats = re.sub(r"\[PDF[^\]]*\]", "", bruto).strip(" |")
-        r = c.get("_pdf") or {}
-        if r.get("verificado"):
-            pdf = f"PDF lido ({r.get('paginas', '?')} pág.)" + (" — sem texto (escaneado), só metadados" if r.get("sem_texto") else "")
-            for a in (r.get("achados") or [])[:3]:
-                pdf += f"<br>▸ {a['nome']} [{a['origem']}]: {a['trecho'][:100]}"
-        else:
-            motivo = r.get('motivo', 'sem detalhe')
-            if anexo and "sem texto" not in anexo.group(0):
-                pdf = f"Link do caso não acessível pelo servidor ({motivo}) — verificação feita pelo anexo"
-            else:
-                pdf = f"⚠ PDF NÃO verificado: {motivo}"
         if anexo:
-            pdf = "Anexo enviado no cadastro: " + anexo.group(0).strip("[]") + "<br>" + pdf
+            pdf = anexo.group(0).strip("[]").replace("PDF anexado", "Petição inicial (PDF anexado)")
+            if "sem texto" in pdf:
+                pdf = "⚠ " + pdf
+        else:
+            pdf = "⚠ Sem petição inicial anexada (cadastro anterior à exigência do anexo)"
+            if nivel == "LIMPO":
+                nivel, cor = "SEM ANÁLISE", "#5B6B7A"
         return nivel, cor, cats, pdf
 
     def linha(c):
@@ -171,7 +139,6 @@ def main():
         LOG.info("Nada novo. Concluído.")
         return
 
-    verificar_pdfs(suspeitos)
     corpo, n_alerta = montar_corpo(suspeitos)
     destinatario_real = DESTINATARIO_REAL
     assunto = (f"🔴 {n_alerta} alerta(s) de prompt injection em {len(suspeitos)} cadastro(s) — Cadastro Deloitte" if n_alerta
