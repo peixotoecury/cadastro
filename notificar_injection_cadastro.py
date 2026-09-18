@@ -19,6 +19,7 @@ com aviso no assunto -- usar assim ate a usuaria validar por alguns dias.
 Depois, mudar pra False (mesmo fluxo do notificar_conclusao.py, Compromissos).
 """
 import json
+import re
 import logging
 import sys
 from datetime import datetime, timezone
@@ -110,7 +111,9 @@ def montar_corpo(itens):
     def status(c):
         nivel = c.get("injection_nivel") or "SEM VERIFICAÇÃO"
         cor = COR_NIVEL.get(nivel, "#1E7A3E" if nivel == "LIMPO" else "#5B6B7A")
-        cats = (c.get("injection_categorias") or "").replace("[PDF verificado]", "").replace("[PDF verificado, sem achado]", "").strip(" |")
+        bruto = c.get("injection_categorias") or ""
+        anexo = re.search(r"\[PDF anexado[^\]]*\]", bruto)
+        cats = re.sub(r"\[PDF[^\]]*\]", "", bruto).strip(" |")
         r = c.get("_pdf") or {}
         if r.get("verificado"):
             pdf = f"PDF lido ({r.get('paginas', '?')} pág.)" + (" — sem texto (escaneado), só metadados" if r.get("sem_texto") else "")
@@ -118,6 +121,8 @@ def montar_corpo(itens):
                 pdf += f"<br>▸ {a['nome']} [{a['origem']}]: {a['trecho'][:100]}"
         else:
             pdf = f"PDF NÃO verificado: {r.get('motivo', 'sem detalhe')}"
+        if anexo:
+            pdf = "Anexo enviado no cadastro: " + anexo.group(0).strip("[]") + "<br>" + pdf
         return nivel, cor, cats, pdf
 
     def linha(c):

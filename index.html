@@ -272,6 +272,12 @@ td.acoes{overflow:visible;white-space:nowrap;}
             <input type="text" id="f-link" required placeholder="https://…">
           </div>
 
+          <div class="mc-form-group">
+            <label>Anexar a petição inicial (PDF) para verificação de prompt injection <span class="req">*</span></label>
+            <input type="file" id="f-pdf" accept="application/pdf,.pdf" required>
+            <small style="color:#5B6B7A">O arquivo é lido no seu navegador só para verificação de segurança; não é enviado nem armazenado.</small>
+          </div>
+
           <button type="submit" class="btn-cyan">Enviar Cadastro</button>
         </form>
       </div>
@@ -530,39 +536,40 @@ function injAnalisarCadastro(...textos){
 // for um PDF de verdade (ex: abre um visualizador em HTML) ou o fetch for
 // bloqueado (CORS/login), retorna null silenciosamente — nunca trava o
 // cadastro por causa disso, só faz a checagem ficar mais fraca (só texto).
+// Lê o PDF (ArrayBuffer) e devolve texto, volume de texto oculto (fonte < 3pt) e metadados.
+async function injLerPDFBuffer(buf){
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let textoTotal = '', oculto = '';
+  const maxPaginas = Math.min(pdf.numPages, 60);
+  for(let i=1; i<=maxPaginas; i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent({ includeMarkedContent:false });
+    for(const item of content.items){
+      if(!item.str) continue;
+      textoTotal += item.str + ' ';
+      const tf = item.transform || [1,0,0,1,0,0];
+      const fontSize = Math.sqrt(tf[0]*tf[0] + tf[1]*tf[1]);
+      if(fontSize > 0 && fontSize < 3 && item.str.trim().length > 2) oculto += item.str + ' ';
+    }
+  }
+  let meta = '';
+  try{ const m = await pdf.getMetadata(); meta = Object.values(m.info||{}).filter(v => typeof v === 'string').join(' '); }catch(_){}
+  return { texto: textoTotal.trim(), oculto: oculto.trim(), meta, paginas: Math.min(pdf.numPages, 60) };
+}
+
+// Link (OneDrive/SharePoint): no navegador quase sempre falha por CORS; a leitura
+// real do PDF do link é feita no servidor (notificar_injection_cadastro.py).
 async function injBuscarTextoPDF(url){
   if(!url) return null;
   try{
     const resp = await fetch(url, { mode:'cors' });
     if(!resp.ok) return null;
-    const ctype = (resp.headers.get('content-type')||'').toLowerCase();
     const buf = await resp.arrayBuffer();
-    // Confere assinatura %PDF- nos primeiros bytes — se não for PDF de
-    // verdade (ex: veio uma página HTML de login/visualizador), descarta.
     const head = new TextDecoder().decode(new Uint8Array(buf.slice(0,5)));
-    if(head !== '%PDF-' && !ctype.includes('pdf')) return null;
-
-    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-    let textoTotal = '';
-    const maxPaginas = Math.min(pdf.numPages, 40); // limite de segurança
-    for(let i=1; i<=maxPaginas; i++){
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent({ includeMarkedContent:false });
-      for(const item of content.items){
-        if(!item.str) continue;
-        textoTotal += item.str + ' ';
-        // Texto em fonte minúscula (<3pt) é o vetor clássico de injection
-        // escondida em PDF — mesmo critério do detector standalone.
-        const tf = item.transform || [1,0,0,1,0,0];
-        const fontSize = Math.sqrt(tf[0]*tf[0] + tf[1]*tf[1]);
-        if(fontSize > 0 && fontSize < 3 && item.str.trim().length > 2){
-          textoTotal += ' ' + item.str + ' ';
-        }
-      }
-    }
-    return textoTotal.trim() || null;
+    if(head !== '%PDF-') return null;
+    const r = await injLerPDFBuffer(buf);
+    return (r.texto + ' ' + r.oculto).trim() || null;
   } catch(e){
-    console.warn('Não foi possível ler o PDF do link (CORS, login necessário, ou link não é PDF direto):', e);
     return null;
   }
 }
@@ -891,13 +898,31 @@ document.querySelector('#form-cadastro').addEventListener('submit', async functi
     return;
   }
 
-  const textoPDF = await injBuscarTextoPDF(payload.link_caso);
-  const inj = injAnalisarCadastro(payload.observacao, payload.link_caso, textoPDF);
-  payload.injection_score = inj.score;
-  payload.injection_nivel = inj.nivel;
-  payload.injection_categorias = inj.categorias.length
-    ? inj.categorias.join(' | ') + (textoPDF ? ' [PDF verificado]' : '')
-    : (textoPDF ? '[PDF verificado, sem achado]' : null);
+  const arquivo = document.querySelector('#f-pdf').files[0];
+  let pdfLido;
+  try{
+    if(!arquivo) throw new Error('nenhum arquivo');
+    const buf = await arquivo.arrayBuffer();
+    const head = new TextDecoder().decode(new Uint8Array(buf.slice(0,5)));
+    if(head !== '%PDF-') throw new Error('não é PDF');
+    pdfLido = await injLerPDFBuffer(buf);
+  }catch(err){
+    alert('ERRO: não foi possível ler o PDF anexado. Anexe a petição inicial em PDF (arquivo válido) para a verificação de segurança.');
+    return;
+  }
+  const inj = injAnalisarCadastro(payload.observacao, payload.link_caso, pdfLido.texto, pdfLido.meta);
+  const cats = [...inj.categorias];
+  let score = inj.score;
+  if(pdfLido.oculto.length > 80){
+    cats.push('Texto oculto (fonte minúscula) no PDF anexado');
+    score = Math.min(score + 8, 100);
+  }
+  const nivel = score>=40?'CRÍTICO':score>=20?'ALTO':score>=8?'MÉDIO':score>0?'BAIXO':'LIMPO';
+  const semTexto = pdfLido.texto.length < 200;
+  payload.injection_score = score;
+  payload.injection_nivel = nivel;
+  payload.injection_categorias = (cats.length ? cats.join(' | ') + ' ' : '') +
+    (semTexto ? '[PDF anexado sem texto - escaneado, só metadados verificados]' : '[PDF anexado verificado, ' + pdfLido.paginas + ' pág.]');
 
   const { data, error } = await getClient().from(TABLE).insert(payload).select();
   if(error){
