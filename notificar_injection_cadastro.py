@@ -27,6 +27,8 @@ from pathlib import Path
 import requests
 import win32com.client
 
+from pdf_injection_scan import verificar_link
+
 sys.stdout.reconfigure(encoding='utf-8')
 
 SUPABASE_URL = "https://sydamnqagkdmczmgkvso.supabase.co"
@@ -75,13 +77,48 @@ def buscar_suspeitos_desde(ultimo_check):
     return r.json()
 
 
+ORDEM = ["LIMPO", "BAIXO", "MÉDIO", "ALTO", "CRÍTICO"]
+
+
+def verificar_pdfs(itens):
+    """Baixa e analisa o PDF de cada cadastro ainda nao verificado; grava o resultado no Supabase."""
+    for c in itens:
+        cats = c.get("injection_categorias") or ""
+        if "[PDF verificado" in cats:
+            c["_pdf"] = {"verificado": True}
+            continue
+        res = verificar_link(c.get("link_caso"))
+        c["_pdf"] = res
+        if not res.get("verificado"):
+            continue
+        nivel_txt = c.get("injection_nivel") or "LIMPO"
+        nivel = max(nivel_txt, res["nivel"], key=lambda n: ORDEM.index(n) if n in ORDEM else 0)
+        score = max(c.get("injection_score") or 0, res["score"])
+        partes = [x for x in cats.split(" | ") if x] + res["categorias"]
+        sufixo = "[PDF verificado]" if res["achados"] else "[PDF verificado, sem achado]"
+        try:
+            requests.patch(f"{SUPABASE_URL}/rest/v1/cadastros_deloitte", headers=HEADERS, timeout=30,
+                           params={"id": f"eq.{c['id']}"},
+                           json={"injection_nivel": nivel, "injection_score": score,
+                                 "injection_categorias": (" | ".join(dict.fromkeys(partes)) + " " + sufixo).strip()})
+        except Exception as e:
+            LOG.warning(f"Nao gravou resultado do PDF de {c.get('id')}: {e}")
+        c["injection_nivel"], c["injection_score"] = nivel, score
+
+
 def montar_corpo(itens):
     def status(c):
         nivel = c.get("injection_nivel") or "SEM VERIFICAÇÃO"
         cor = COR_NIVEL.get(nivel, "#1E7A3E" if nivel == "LIMPO" else "#5B6B7A")
-        cats = c.get("injection_categorias") or ""
-        pdf = "PDF do link verificado" if "[PDF verificado" in cats else "PDF do link NÃO verificado (só Observação/Link)"
-        return nivel, cor, cats.replace("[PDF verificado]", "").replace("[PDF verificado, sem achado]", "").strip(" |"), pdf
+        cats = (c.get("injection_categorias") or "").replace("[PDF verificado]", "").replace("[PDF verificado, sem achado]", "").strip(" |")
+        r = c.get("_pdf") or {}
+        if r.get("verificado"):
+            pdf = f"PDF lido ({r.get('paginas', '?')} pág.)" + (" — sem texto (escaneado), só metadados" if r.get("sem_texto") else "")
+            for a in (r.get("achados") or [])[:3]:
+                pdf += f"<br>▸ {a['nome']} [{a['origem']}]: {a['trecho'][:100]}"
+        else:
+            pdf = f"PDF NÃO verificado: {r.get('motivo', 'sem detalhe')}"
+        return nivel, cor, cats, pdf
 
     def linha(c):
         nivel, cor, cats, pdf = status(c)
@@ -125,6 +162,7 @@ def main():
         LOG.info("Nada novo. Concluído.")
         return
 
+    verificar_pdfs(suspeitos)
     corpo, n_alerta = montar_corpo(suspeitos)
     destinatario_real = DESTINATARIO_REAL
     assunto = (f"🔴 {n_alerta} alerta(s) de prompt injection em {len(suspeitos)} cadastro(s) — Cadastro Deloitte" if n_alerta
