@@ -37,7 +37,7 @@ CADASTRO_URL = "https://peixotoecury.github.io/cadastro/"
 DESTINATARIO_REAL = "controladoria@peixotoecury.com.br"
 
 # ── MODO TESTE — deixar True ate a usuaria validar, depois mudar pra False ──
-MODO_TESTE = True
+MODO_TESTE = False
 TESTE_EMAIL = "claude.controladoria@peixotoecury.com.br"
 
 ULTIMO_CHECK_PATH = Path(__file__).parent / "_ultimo_check_injection.json"
@@ -66,7 +66,6 @@ def buscar_suspeitos_desde(ultimo_check):
         f"{SUPABASE_URL}/rest/v1/cadastros_deloitte",
         headers=HEADERS, timeout=30,
         params={
-            "injection_nivel": "neq.LIMPO",
             "created_at": f"gt.{ultimo_check}",
             "select": "*",
             "order": "created_at.asc",
@@ -77,26 +76,32 @@ def buscar_suspeitos_desde(ultimo_check):
 
 
 def montar_corpo(itens):
-    def linha(c):
-        cor = COR_NIVEL.get(c.get("injection_nivel"), "#5B6B7A")
-        partes = [
-            f"<b style='color:{cor}'>{c.get('injection_nivel')}</b> (score {c.get('injection_score')})",
-            "—", c.get("nome_reclamante") or "—", "x", c.get("nome_reclamada") or "—",
-            f"· processo {c.get('numero_processo') or '—'}",
-        ]
-        cabecalho = " ".join(p for p in partes if p)
-        categorias = c.get("injection_categorias") or ""
-        obs = (c.get("observacao") or "")[:300]
-        return (f"<li>{cabecalho}<br>"
-                f"<span style='color:#7E98AA;font-size:12px'>Categorias: {categorias}</span><br>"
-                f"<span style='color:#7E98AA;font-size:12px'>Observação: {obs}</span></li>")
+    def status(c):
+        nivel = c.get("injection_nivel") or "SEM VERIFICAÇÃO"
+        cor = COR_NIVEL.get(nivel, "#1E7A3E" if nivel == "LIMPO" else "#5B6B7A")
+        cats = c.get("injection_categorias") or ""
+        pdf = "PDF do link verificado" if "[PDF verificado" in cats else "PDF do link NÃO verificado (só Observação/Link)"
+        return nivel, cor, cats.replace("[PDF verificado]", "").replace("[PDF verificado, sem achado]", "").strip(" |"), pdf
 
-    corpo = ("⚠️ Cadastro(s) com possível <b>prompt injection</b> detectado no campo "
-             "Observação/Link desde a última checagem:<br><br>")
-    corpo += "<ul>" + "".join(linha(c) for c in itens) + "</ul>"
+    def linha(c):
+        nivel, cor, cats, pdf = status(c)
+        obs = (c.get("observacao") or "")[:200]
+        return (f"<tr><td style='padding:4px 8px'>{c.get('numero_processo') or '—'}</td>"
+                f"<td style='padding:4px 8px'>{c.get('nome_reclamante') or '—'}</td>"
+                f"<td style='padding:4px 8px'><b style='color:{cor}'>{nivel}</b> (score {c.get('injection_score')})</td>"
+                f"<td style='padding:4px 8px;color:#5B6B7A;font-size:12px'>{cats or '—'}<br>{pdf}</td>"
+                f"<td style='padding:4px 8px;color:#5B6B7A;font-size:12px'>{obs}</td></tr>")
+
+    suspeitos = [c for c in itens if (c.get("injection_nivel") or "LIMPO") != "LIMPO"]
+    corpo = f"Verificação de prompt injection dos <b>{len(itens)}</b> cadastro(s) novo(s) desde a última checagem"
+    corpo += (f" — <b style='color:#C0392B'>{len(suspeitos)} com alerta</b>:<br><br>" if suspeitos
+              else " — <b style='color:#1E7A3E'>nenhum alerta</b>:<br><br>")
+    corpo += ("<table border='1' cellspacing='0' style='border-collapse:collapse;border-color:#DDE6EC;font-size:13px'>"
+              "<tr style='background:#003B5C;color:#fff'><th>Processo</th><th>Reclamante</th><th>Resultado</th>"
+              "<th>Categorias / PDF</th><th>Observação</th></tr>" + "".join(linha(c) for c in itens) + "</table>")
     corpo += (f"<br><a href='{CADASTRO_URL}'>Ver painel completo</a><br><br>"
               f"Atenciosamente,<br>Controladoria — Peixoto e Cury Advogados")
-    return corpo
+    return corpo, len(suspeitos)
 
 
 def enviar_email(destinatario, assunto, corpo_html):
@@ -120,9 +125,10 @@ def main():
         LOG.info("Nada novo. Concluído.")
         return
 
-    corpo = montar_corpo(suspeitos)
+    corpo, n_alerta = montar_corpo(suspeitos)
     destinatario_real = DESTINATARIO_REAL
-    assunto = f"🔴 {len(suspeitos)} cadastro(s) com possível prompt injection — Cadastro Deloitte"
+    assunto = (f"🔴 {n_alerta} alerta(s) de prompt injection em {len(suspeitos)} cadastro(s) — Cadastro Deloitte" if n_alerta
+               else f"🟢 {len(suspeitos)} cadastro(s) verificado(s), sem prompt injection — Cadastro Deloitte")
     if MODO_TESTE:
         destinatario_real = TESTE_EMAIL
         assunto = f"[TESTE — seria p/ {DESTINATARIO_REAL}] {assunto}"
