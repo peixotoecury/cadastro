@@ -120,7 +120,11 @@ def montar_corpo(itens):
             for a in (r.get("achados") or [])[:3]:
                 pdf += f"<br>▸ {a['nome']} [{a['origem']}]: {a['trecho'][:100]}"
         else:
-            pdf = f"PDF NÃO verificado: {r.get('motivo', 'sem detalhe')}"
+            motivo = r.get('motivo', 'sem detalhe')
+            if anexo and "sem texto" not in anexo.group(0):
+                pdf = f"Link do caso não acessível pelo servidor ({motivo}) — verificação feita pelo anexo"
+            else:
+                pdf = f"⚠ PDF NÃO verificado: {motivo}"
         if anexo:
             pdf = "Anexo enviado no cadastro: " + anexo.group(0).strip("[]") + "<br>" + pdf
         return nivel, cor, cats, pdf
