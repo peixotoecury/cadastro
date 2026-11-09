@@ -897,23 +897,13 @@ function dadosEmail(c, limObs, semDetalhe){
 }
 
 // O Outlook não abre nada quando o link mailto passa de ~2.000 caracteres (acentos contam 6 cada).
-// O e-mail sempre leva o texto: se não couber, tira o detalhe técnico da verificação e encurta só a observação.
+// O e-mail vai sempre completo; para textos longos a janela oferece Copiar e-mail.
 const MAILTO_MAX = 1900;
 function linkMailto(c, limObs, semDetalhe){
   const { to, cc, assunto, corpo } = dadosEmail(c, limObs, semDetalhe);
   return `mailto:${to}?subject=${encodeURIComponent(assunto)}` + (cc ? `&cc=${encodeURIComponent(cc)}` : '') + `&body=${encodeURIComponent(corpo)}`;
 }
-function montarEmail(c){
-  let link = linkMailto(c);
-  if(link.length <= MAILTO_MAX) return link;
-  link = linkMailto(c, null, true);
-  if(link.length <= MAILTO_MAX) return link;
-  for(let n = (c.observacao||'').length - 20; n >= 0; n -= 20){
-    link = linkMailto(c, n, true);
-    if(link.length <= MAILTO_MAX) return link;
-  }
-  return link;
-}
+function montarEmail(c){ return linkMailto(c); }  // sempre o e-mail completo
 function emailCabeNoLink(c){ return linkMailto(c).length <= MAILTO_MAX; }
 
 async function copiarTexto(txt){
@@ -939,7 +929,7 @@ function janelaEmail(c, tipo, titulo, introHtml){
       <div style="padding:16px 20px 8px;font-size:14px;line-height:1.55;color:#1A2B3C">${introHtml}
         <div style="margin-top:12px;font-size:13px;background:#F4F9FC;border:1px solid #D8E7F0;border-radius:8px;padding:10px 12px;word-break:break-word">
           <b>Para:</b> ${e(to.replace(/,/g,', '))}<br><b>Cc:</b> ${e(cc.replace(/,/g,', '))}<br><b>Assunto:</b> ${e(assunto)}</div>
-        ${emailCabeNoLink(c) ? '' : '<div style="margin-top:10px;font-size:13px;color:#B85C00"><b>Texto longo:</b> no Outlook a observação vai resumida (o limite do Outlook não comporta tudo). Se precisar mandar a íntegra, use Copiar e-mail.</div>'}
+        ${emailCabeNoLink(c) ? '' : '<div style="margin-top:10px;font-size:13px;color:#B85C00"><b>Texto longo:</b> se o Outlook não abrir ao clicar, use <b>Copiar e-mail</b> e cole num e-mail novo.</div>'}
         <div data-msg style="margin-top:10px;font-size:13px;color:#5F7E92">Se o Outlook não abrir, clique em <b>Copiar e-mail</b>, abra um e-mail novo no Outlook e cole (Ctrl+V): os destinatários, o assunto e o texto vão juntos. Se o e-mail ficar parado na <b>Caixa de Saída</b>, apague-o de lá e mande um e-mail novo com o Copiar e-mail.</div>
       </div>
       <div style="padding:10px 20px 18px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
