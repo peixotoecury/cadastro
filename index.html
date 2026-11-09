@@ -863,7 +863,7 @@ function mostrarAviso(tipo, titulo, corpoHtml, textoBotao){
   });
 }
 
-function dadosEmail(c){
+function dadosEmail(c, limObs, semDetalhe){
   const assunto = `Cadastro Deloitte — ${c.nome_reclamante} — ${c.numero_processo}`;
   const linhas = [
     'CADASTRO PARA DELOITTE',
@@ -884,11 +884,11 @@ function dadosEmail(c){
     `Qual prazo?: ${naSeVazio(c.qual_prazo)}`,
     `Data da audiência: ${formatarData(c.data_audiencia)}`,
     `Data do prazo: ${formatarData(c.data_prazo)}`,
-    `Observação: ${naSeVazio(c.observacao)}`,
+    `Observação: ${limObs != null && (c.observacao||'').length > limObs ? c.observacao.slice(0, limObs).trimEnd() + '… [observação resumida; texto completo no LAWgico Cadastro]' : naSeVazio(c.observacao)}`,
     `Link do caso: ${naSeVazio(c.link_caso)}`,
     '',
     `VERIFICAÇÃO DE PROMPT INJECTION: ${c.injection_nivel === 'LIMPO' || !c.injection_nivel ? 'NÃO IDENTIFICADO (LIMPO)' : 'ALERTA — nível ' + c.injection_nivel + ' (score ' + c.injection_score + ')'}`,
-    ...(c.injection_categorias ? [`Detalhe: ${c.injection_categorias}`] : [])
+    ...(c.injection_categorias && !semDetalhe ? [`Detalhe: ${c.injection_categorias}`] : [])
   ];
   const corpo = linhas.join('\n');
   const cc = [...(GRUPO_CC[c.grupo_processos] || []), 'controladoria@peixotoecury.com.br'].join(',');
@@ -897,16 +897,24 @@ function dadosEmail(c){
 }
 
 // O Outlook não abre nada quando o link mailto passa de ~2.000 caracteres (acentos contam 6 cada).
-// Nesse caso o link leva só destinatários e assunto, e o texto vai pela área de transferência.
+// O e-mail sempre leva o texto: se não couber, tira o detalhe técnico da verificação e encurta só a observação.
 const MAILTO_MAX = 1900;
-function montarEmail(c, semCorpo){
-  const { to, cc, assunto, corpo } = dadosEmail(c);
-  const base = `mailto:${to}?subject=${encodeURIComponent(assunto)}` + (cc ? `&cc=${encodeURIComponent(cc)}` : '');
-  const completo = base + `&body=${encodeURIComponent(corpo)}`;
-  if(!semCorpo && completo.length <= MAILTO_MAX) return completo;
-  return base + `&body=${encodeURIComponent('[Cole aqui o texto do cadastro: Ctrl+V]')}`;
+function linkMailto(c, limObs, semDetalhe){
+  const { to, cc, assunto, corpo } = dadosEmail(c, limObs, semDetalhe);
+  return `mailto:${to}?subject=${encodeURIComponent(assunto)}` + (cc ? `&cc=${encodeURIComponent(cc)}` : '') + `&body=${encodeURIComponent(corpo)}`;
 }
-function emailCabeNoLink(c){ return montarEmail(c).length <= MAILTO_MAX && !montarEmail(c).includes('Cole%20aqui'); }
+function montarEmail(c){
+  let link = linkMailto(c);
+  if(link.length <= MAILTO_MAX) return link;
+  link = linkMailto(c, null, true);
+  if(link.length <= MAILTO_MAX) return link;
+  for(let n = (c.observacao||'').length - 20; n >= 0; n -= 20){
+    link = linkMailto(c, n, true);
+    if(link.length <= MAILTO_MAX) return link;
+  }
+  return link;
+}
+function emailCabeNoLink(c){ return linkMailto(c).length <= MAILTO_MAX; }
 
 async function copiarTexto(txt){
   try{ await navigator.clipboard.writeText(txt); return true; }catch(_){}
@@ -931,7 +939,7 @@ function janelaEmail(c, tipo, titulo, introHtml){
       <div style="padding:16px 20px 8px;font-size:14px;line-height:1.55;color:#1A2B3C">${introHtml}
         <div style="margin-top:12px;font-size:13px;background:#F4F9FC;border:1px solid #D8E7F0;border-radius:8px;padding:10px 12px;word-break:break-word">
           <b>Para:</b> ${e(to.replace(/,/g,', '))}<br><b>Cc:</b> ${e(cc.replace(/,/g,', '))}<br><b>Assunto:</b> ${e(assunto)}</div>
-        ${emailCabeNoLink(c) ? '' : '<div style="margin-top:10px;font-size:13px;color:#B85C00"><b>Texto longo:</b> ao clicar em Abrir no Outlook, o texto do cadastro é copiado. No e-mail que abrir, apague a linha indicada e cole (Ctrl+V).</div>'}
+        ${emailCabeNoLink(c) ? '' : '<div style="margin-top:10px;font-size:13px;color:#B85C00"><b>Texto longo:</b> no Outlook a observação vai resumida (o limite do Outlook não comporta tudo). Se precisar mandar a íntegra, use Copiar e-mail.</div>'}
         <div data-msg style="margin-top:10px;font-size:13px;color:#5F7E92">Se o Outlook não abrir, clique em <b>Copiar e-mail</b>, abra um e-mail novo no Outlook e cole (Ctrl+V): os destinatários, o assunto e o texto vão juntos. Se o e-mail ficar parado na <b>Caixa de Saída</b>, apague-o de lá e mande um e-mail novo com o Copiar e-mail.</div>
       </div>
       <div style="padding:10px 20px 18px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
@@ -947,7 +955,6 @@ function janelaEmail(c, tipo, titulo, introHtml){
         ? 'Copiado. Abra um <b>e-mail novo</b> no Outlook, cole no corpo (Ctrl+V) e passe os endereços de <b>Para</b>, <b>Cc</b> e o <b>Assunto</b> para os campos de cima antes de enviar.'
         : 'O navegador bloqueou a cópia. Selecione os dados acima manualmente ou use o botão Reenviar e-mail no histórico.';
     };
-    if(!emailCabeNoLink(c)) ov.querySelector('[data-abrir]').addEventListener('click', () => { copiarTexto(corpo); });
     ov.querySelector('[data-fechar]').onclick = () => { ov.remove(); resolve(); };
     document.body.appendChild(ov);
     ov.querySelector('[data-abrir]').focus();
