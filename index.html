@@ -932,7 +932,7 @@ function janelaEmail(c, tipo, titulo, introHtml){
         <div style="margin-top:12px;font-size:13px;background:#F4F9FC;border:1px solid #D8E7F0;border-radius:8px;padding:10px 12px;word-break:break-word">
           <b>Para:</b> ${e(to.replace(/,/g,', '))}<br><b>Cc:</b> ${e(cc.replace(/,/g,', '))}<br><b>Assunto:</b> ${e(assunto)}</div>
         ${emailCabeNoLink(c) ? '' : '<div style="margin-top:10px;font-size:13px;color:#B85C00"><b>Texto longo:</b> ao clicar em Abrir no Outlook, o texto do cadastro é copiado. No e-mail que abrir, apague a linha indicada e cole (Ctrl+V).</div>'}
-        <div data-msg style="margin-top:10px;font-size:13px;color:#5F7E92">Se o Outlook não abrir, clique em <b>Copiar e-mail</b>, abra um e-mail novo no Outlook e cole (Ctrl+V): os destinatários, o assunto e o texto vão juntos.</div>
+        <div data-msg style="margin-top:10px;font-size:13px;color:#5F7E92">Se o Outlook não abrir, clique em <b>Copiar e-mail</b>, abra um e-mail novo no Outlook e cole (Ctrl+V): os destinatários, o assunto e o texto vão juntos. Se o e-mail ficar parado na <b>Caixa de Saída</b>, apague-o de lá e mande um e-mail novo com o Copiar e-mail.</div>
       </div>
       <div style="padding:10px 20px 18px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
         <button data-fechar style="${btn('#fff', cores[0])}">Fechar</button>
@@ -1012,8 +1012,9 @@ async function processarEnvio(form){
     normNum(c.numero_processo) === normNum(payload.numero_processo) &&
     normNome(c.nome_reclamante) === normNome(payload.nome_reclamante));
   if(duplicado){
-    await mostrarAviso('erro','ERRO: CADASTRO DUPLICADO',
-      'Este processo já foi cadastrado para esta parte. <b>Não é necessário solicitar novamente.</b><br><br>' +
+    await janelaEmail(duplicado, 'alerta', 'CADASTRO JÁ EXISTE',
+      'Este processo já foi cadastrado para esta parte. <b>Não é necessário cadastrar de novo.</b> ' +
+      'Se o e-mail desse cadastro não chegou, envie por aqui mesmo (Abrir no Outlook ou Copiar e-mail).<br><br>' +
       '<b>Processo:</b> ' + e(duplicado.numero_processo) + '<br>' +
       '<b>Parte:</b> ' + e(duplicado.nome_reclamante) + '<br>' +
       '<b>Cadastrado em:</b> ' + formatarData((duplicado.created_at||'').slice(0,10)) + '<br>' +
