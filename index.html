@@ -863,7 +863,7 @@ function mostrarAviso(tipo, titulo, corpoHtml, textoBotao){
   });
 }
 
-function montarEmail(c){
+function dadosEmail(c){
   const assunto = `Cadastro Deloitte — ${c.nome_reclamante} — ${c.numero_processo}`;
   const linhas = [
     'CADASTRO PARA DELOITTE',
@@ -893,15 +893,71 @@ function montarEmail(c){
   const corpo = linhas.join('\n');
   const cc = [...(GRUPO_CC[c.grupo_processos] || []), 'controladoria@peixotoecury.com.br'].join(',');
   const to = DESTINATARIOS_FIXOS.join(',');
-  let link = `mailto:${to}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
-  if(cc) link += `&cc=${encodeURIComponent(cc)}`;
-  return link;
+  return { to, cc, assunto, corpo };
+}
+
+// O Outlook não abre nada quando o link mailto passa de ~2.000 caracteres (acentos contam 6 cada).
+// Nesse caso o link leva só destinatários e assunto, e o texto vai pela área de transferência.
+const MAILTO_MAX = 1900;
+function montarEmail(c, semCorpo){
+  const { to, cc, assunto, corpo } = dadosEmail(c);
+  const base = `mailto:${to}?subject=${encodeURIComponent(assunto)}` + (cc ? `&cc=${encodeURIComponent(cc)}` : '');
+  const completo = base + `&body=${encodeURIComponent(corpo)}`;
+  if(!semCorpo && completo.length <= MAILTO_MAX) return completo;
+  return base + `&body=${encodeURIComponent('[Cole aqui o texto do cadastro: Ctrl+V]')}`;
+}
+function emailCabeNoLink(c){ return montarEmail(c).length <= MAILTO_MAX && !montarEmail(c).includes('Cole%20aqui'); }
+
+async function copiarTexto(txt){
+  try{ await navigator.clipboard.writeText(txt); return true; }catch(_){}
+  const ta = document.createElement('textarea');
+  ta.value = txt; ta.style.cssText = 'position:fixed;top:-1000px';
+  document.body.appendChild(ta); ta.select();
+  let ok = false; try{ ok = document.execCommand('copy'); }catch(_){}
+  ta.remove(); return ok;
+}
+
+// Janela do e-mail: link "Abrir no Outlook" (clique direto da pessoa) + "Copiar e-mail" para quando
+// o computador não tem app de e-mail padrão configurado e o mailto não abre nada.
+function janelaEmail(c, tipo, titulo, introHtml){
+  return new Promise(resolve => {
+    const { to, cc, assunto, corpo } = dadosEmail(c);
+    const cores = { ok:['#1E7A3E','#E8F5EC'], alerta:['#C0392B','#FDECEA'] }[tipo] || ['#003B5C','#E5F3F8'];
+    const btn = (bg, fg) => `background:${bg};color:${fg};border:1px solid ${cores[0]};border-radius:8px;padding:10px 16px;font-weight:700;font-size:14px;cursor:pointer;text-decoration:none;display:inline-block;font-family:inherit`;
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,30,54,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML = `<div style="background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:calc(100vh - 32px);overflow:auto;border-top:8px solid ${cores[0]};box-shadow:0 12px 40px rgba(0,0,0,.35)">
+      <div style="background:${cores[1]};padding:16px 20px;color:${cores[0]};font-weight:800;font-size:16px">${titulo}</div>
+      <div style="padding:16px 20px 8px;font-size:14px;line-height:1.55;color:#1A2B3C">${introHtml}
+        <div style="margin-top:12px;font-size:13px;background:#F4F9FC;border:1px solid #D8E7F0;border-radius:8px;padding:10px 12px;word-break:break-word">
+          <b>Para:</b> ${e(to.replace(/,/g,', '))}<br><b>Cc:</b> ${e(cc.replace(/,/g,', '))}<br><b>Assunto:</b> ${e(assunto)}</div>
+        ${emailCabeNoLink(c) ? '' : '<div style="margin-top:10px;font-size:13px;color:#B85C00"><b>Texto longo:</b> ao clicar em Abrir no Outlook, o texto do cadastro é copiado. No e-mail que abrir, apague a linha indicada e cole (Ctrl+V).</div>'}
+        <div data-msg style="margin-top:10px;font-size:13px;color:#5F7E92">Se o Outlook não abrir, clique em <b>Copiar e-mail</b>, abra um e-mail novo no Outlook e cole (Ctrl+V): os destinatários, o assunto e o texto vão juntos.</div>
+      </div>
+      <div style="padding:10px 20px 18px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+        <button data-fechar style="${btn('#fff', cores[0])}">Fechar</button>
+        <button data-copiar style="${btn('#fff', cores[0])}">Copiar e-mail</button>
+        <a data-abrir href="${montarEmail(c)}" style="${btn(cores[0], '#fff')}">Abrir no Outlook</a>
+      </div></div>`;
+    ov.querySelector('[data-copiar]').onclick = async function(){
+      const txt = `Para: ${to.replace(/,/g,'; ')}\nCc: ${cc.replace(/,/g,'; ')}\nAssunto: ${assunto}\n\n${corpo}`;
+      const ok = await copiarTexto(txt);
+      this.textContent = ok ? 'Copiado ✓' : 'Não foi possível copiar';
+      ov.querySelector('[data-msg]').innerHTML = ok
+        ? 'Copiado. Abra um <b>e-mail novo</b> no Outlook, cole no corpo (Ctrl+V) e passe os endereços de <b>Para</b>, <b>Cc</b> e o <b>Assunto</b> para os campos de cima antes de enviar.'
+        : 'O navegador bloqueou a cópia. Selecione os dados acima manualmente ou use o botão Reenviar e-mail no histórico.';
+    };
+    if(!emailCabeNoLink(c)) ov.querySelector('[data-abrir]').addEventListener('click', () => { copiarTexto(corpo); });
+    ov.querySelector('[data-fechar]').onclick = () => { ov.remove(); resolve(); };
+    document.body.appendChild(ov);
+    ov.querySelector('[data-abrir]').focus();
+  });
 }
 
 function reenviarEmail(id){
   const c = CADASTROS.find(x => String(x.id) === String(id));
   if(!c) return;
-  window.location.href = montarEmail(c);
+  janelaEmail(c, 'info', 'Reenviar e-mail do cadastro', 'Processo <b>' + e(c.numero_processo) + '</b> · ' + e(c.nome_reclamante));
 }
 
 async function excluirCadastro(id){
@@ -999,19 +1055,17 @@ async function processarEnvio(form){
 
   const novo = (data && data[0]) || payload;
   const limpo = !novo.injection_nivel || novo.injection_nivel === 'LIMPO';
-  await mostrarAviso(limpo ? 'ok' : 'alerta',
-    limpo ? 'Cadastro salvo — prompt injection: NÃO identificado' : 'ATENÇÃO: possível prompt injection identificado',
-    limpo ? 'A petição anexada foi verificada e <b>não apresentou sinais de prompt injection</b>. Clique em OK para abrir o e-mail de cadastro (a Controladoria recebe o resultado da verificação).'
-          : 'Nível <b>' + e(novo.injection_nivel) + '</b> (score ' + e(novo.injection_score) + ').<br>' + e(novo.injection_categorias || '') + '<br><br>O cadastro foi salvo e a Controladoria será avisada no e-mail. Clique em OK para abrir o e-mail.',
-    'OK — abrir e-mail');
-  window.location.href = montarEmail(novo);
-
+  // Salvou: limpa o formulário e atualiza o histórico já, para o cadastro não depender do e-mail abrir.
   form.reset();
   resetPrazoCampos();
   wrapDesligamento.style.display = 'none';
   fDataDesligamento.required = false;
+  carregar();
 
-  await carregar();
+  await janelaEmail(novo, limpo ? 'ok' : 'alerta',
+    limpo ? 'Cadastro salvo · prompt injection: NÃO identificado' : 'ATENÇÃO: possível prompt injection identificado',
+    limpo ? 'A petição anexada foi verificada e <b>não apresentou sinais de prompt injection</b>. Agora envie o e-mail de cadastro (a Controladoria recebe o resultado da verificação).'
+          : 'Nível <b>' + e(novo.injection_nivel) + '</b> (score ' + e(novo.injection_score) + ').<br>' + e(novo.injection_categorias || '') + '<br><br>O cadastro foi salvo e a Controladoria será avisada no e-mail. Agora envie o e-mail de cadastro.');
 }
 
 document.querySelector('#btn-exportar').addEventListener('click', function(){
